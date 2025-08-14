@@ -1,13 +1,10 @@
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-use tracing::{Level, error, info};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-mod error;
-mod tiles;
-mod utils;
-
-use error::TesseraError;
+use tessera::calculate_geometric_error;
+use tessera::error::TesseraError;
 
 #[derive(Parser)]
 #[command(
@@ -66,10 +63,8 @@ async fn main() -> Result<(), TesseraError> {
 
     match (cli.command, cli.tileset) {
         (Some(Commands::Recalculate { tileset }), _) | (None, Some(tileset)) => {
-            use crate::tiles::{
-                collect_content_uris, load_gltf_assets, load_tileset, summarize_gltf,
-            };
             use std::path::PathBuf;
+            use tessera::tileset::loader::load_tileset;
 
             let tileset_path = PathBuf::from(&tileset);
             let base_dir = tileset_path
@@ -77,29 +72,8 @@ async fn main() -> Result<(), TesseraError> {
                 .unwrap_or_else(|| std::path::Path::new("."));
 
             let doc = load_tileset(&tileset_path)?;
-            let uris = collect_content_uris(&doc);
-            info!("Found {} content URIs in tileset", uris.len());
 
-            let loaded = load_gltf_assets(base_dir, &uris);
-            let mut ok_count = 0usize;
-            let mut fail_count = 0usize;
-            for res in loaded {
-                match res {
-                    Ok(asset) => {
-                        ok_count += 1;
-                        let (m, n, p) = summarize_gltf(&asset.document);
-                        info!(
-                            "Loaded {:?}: meshes={}, nodes={}, primitives={}",
-                            asset.source_path, m, n, p
-                        );
-                    }
-                    Err(e) => {
-                        fail_count += 1;
-                        error!("{}", e);
-                    }
-                }
-            }
-            info!("GLTF load results: ok={}, failed={}", ok_count, fail_count);
+            calculate_geometric_error(&doc, base_dir)?;
         }
         // No subcommand and no tileset path: show help
         (None, None) => {
