@@ -1,14 +1,16 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn strip_query_and_fragment(uri: &str) -> &str {
     let without_query = uri.split('?').next().unwrap_or(uri);
     without_query.split('#').next().unwrap_or(without_query)
 }
 
-pub fn is_gltf_like(path: &Path) -> bool {
-    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-        matches!(ext.to_lowercase().as_str(), "gltf" | "glb")
-    } else {
-        false
+pub fn resolve_uri(base_dir: &Path, uri: &str) -> PathBuf {
+    let trimmed = strip_query_and_fragment(uri);
+    let p = Path::new(trimmed);
+
+    if p.is_absolute() {
+        return p.to_path_buf();
     }
+    return base_dir.join(p);
 }
