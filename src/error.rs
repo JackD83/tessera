@@ -16,6 +16,9 @@ pub enum TesseraError {
 
     #[error("Invalid GLTF file: {0}")]
     InvalidGltfFile(String),
+
+    #[error("Unsupported GLTF primitive type: {0}")]
+    UnsuportedGltfPrimitiveType(String),
 }
 
 pub type Result<T> = std::result::Result<T, TesseraError>;
