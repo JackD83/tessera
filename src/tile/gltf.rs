@@ -1,7 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use tracing::debug;
-
 use crate::{error::TesseraError, utils::resolve_uri};
 
 pub struct GltfAsset {
@@ -19,34 +17,28 @@ pub fn is_gltf_like(path: &Path) -> bool {
     }
 }
 
-pub fn load_tile_gltf(base_dir: &Path, uris: &[String]) -> Vec<Result<GltfAsset, TesseraError>> {
-    let mut results = Vec::new();
+pub fn load_tile_gltf(base_dir: &Path, uri: &String) -> Result<GltfAsset, TesseraError> {
+    let path = resolve_uri(base_dir, uri);
 
-    for uri in uris {
-        let path = resolve_uri(base_dir, uri);
-
-        if !is_gltf_like(&path) {
-            debug!("Skipping non-GLTF content: {:?}", path);
-            continue;
-        }
-
-        match gltf::import(&path) {
-            Ok((document, buffers, images)) => {
-                results.push(Ok(GltfAsset {
-                    source_path: path,
-                    document,
-                    buffers,
-                    images,
-                }));
-            }
-            Err(e) => {
-                results.push(Err(TesseraError::Processing(format!(
-                    "Failed to load GLTF from {:?}: {}",
-                    path, e
-                ))));
-            }
-        }
+    if !is_gltf_like(&path) {
+        return Err(TesseraError::InvalidGltfFile(uri.to_string()));
     }
 
-    return results;
+    match gltf::import(&path) {
+        Ok((document, buffers, images)) => {
+            // TODO: write a function to convert gltfAsset to Geometry and update return type
+            return Ok(GltfAsset {
+                source_path: path,
+                document,
+                buffers,
+                images,
+            });
+        }
+        Err(e) => {
+            return Err(TesseraError::Processing(format!(
+                "Failed to load GLTF from {:?}: {}",
+                path, e
+            )));
+        }
+    }
 }
