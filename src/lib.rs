@@ -17,6 +17,7 @@ pub fn calculate_geometric_error(tileset: &Tileset, base_dir: &Path) -> Result<(
         .into_values()
         .filter(|node| node.is_leaf())
         .for_each(|node| {
+            // TODO: fix this extraction to make it cleaner
             let tile_content_uris: Vec<String> = if node.tile.content.is_some() {
                 vec![node.tile.content.as_ref().unwrap().uri.clone()]
             } else {

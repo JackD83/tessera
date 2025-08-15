@@ -40,6 +40,7 @@ pub fn load_tile_geometry(
     let tile_type = get_loader_for_uri(full_content_uri);
     let mut results = Vec::<Result<Geometry, TesseraError>>::new();
 
+    // TODO: Add B3DM loader (check 28 byte header then skip to correct position and load as slice)
     match tile_type {
         Ok(TileType::GLTF) => {
             let _gltf_asset = load_tile_gltf(base_dir, content_uri);
