@@ -1,3 +1,5 @@
+pub mod compare;
+
 #[derive(Debug)]
 pub enum PrimitiveType {
     Point,

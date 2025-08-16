@@ -32,8 +32,11 @@ impl<'a> TilesetNode<'a> {
     }
 }
 
-pub(crate) fn parse_tileset_nodes<'a>(tileset: &'a Tileset) -> HashMap<u32, TilesetNode<'a>> {
+pub(crate) fn parse_tileset_nodes<'a>(
+    tileset: &'a Tileset,
+) -> (HashMap<u32, TilesetNode<'a>>, Vec<u32>) {
     let mut node_map = HashMap::<u32, TilesetNode>::new();
+    let mut leaf_ids = Vec::<u32>::new();
     let mut current_key: u32 = 0;
 
     fn traverse<'a>(
@@ -41,6 +44,7 @@ pub(crate) fn parse_tileset_nodes<'a>(tileset: &'a Tileset) -> HashMap<u32, Tile
         parent_key: Option<u32>,
         node_map: &mut HashMap<u32, TilesetNode<'a>>,
         current_key: &mut u32,
+        leaf_ids: &mut Vec<u32>,
     ) -> u32 {
         let mut node = TilesetNode {
             key: *current_key,
@@ -55,19 +59,28 @@ pub(crate) fn parse_tileset_nodes<'a>(tileset: &'a Tileset) -> HashMap<u32, Tile
 
         if !tile.children.is_empty() {
             for child in &tile.children {
-                let new_node_key = traverse(child, Some(node.key), node_map, current_key);
+                let new_node_key = traverse(child, Some(node.key), node_map, current_key, leaf_ids);
 
                 node.add_child(new_node_key);
             }
         }
 
         let key = node.key;
+        if node.is_leaf() {
+            leaf_ids.push(key);
+        }
         node_map.insert(key, node);
 
         return key;
     }
 
-    traverse(&tileset.root, None, &mut node_map, &mut current_key);
+    traverse(
+        &tileset.root,
+        None,
+        &mut node_map,
+        &mut current_key,
+        &mut leaf_ids,
+    );
 
-    return node_map;
+    return (node_map, leaf_ids);
 }

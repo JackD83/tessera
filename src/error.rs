@@ -19,6 +19,9 @@ pub enum TesseraError {
 
     #[error("Unsupported GLTF primitive type: {0}")]
     UnsuportedGltfPrimitiveType(String),
+
+    #[error("Unsupported primitive comparison: {0}")]
+    UnsupportedPrimitiveComparison(String),
 }
 
 pub type Result<T> = std::result::Result<T, TesseraError>;

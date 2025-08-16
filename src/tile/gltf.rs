@@ -1,6 +1,5 @@
 use gltf::mesh::{Mode, util::ReadIndices};
 use std::path::{Path, PathBuf};
-use tracing::debug;
 
 use crate::{
     error::TesseraError,
@@ -60,6 +59,8 @@ pub fn gltf_to_geometry(
             let mesh = node.mesh().unwrap();
 
             // TODO: Add transform support, currently only direct vertex data is considered
+            // TODO: Add bounding spheres per primitive (as easily transformed) so we can
+            // avoid comparing when we know they are too far away
             for primitive in mesh.primitives() {
                 let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
@@ -81,8 +82,6 @@ pub fn gltf_to_geometry(
             }
         }
     }
-
-    println!("{:?}", geometry);
 
     return Ok(geometry);
 }
