@@ -1,7 +1,12 @@
 use crate::{
     error::TesseraError,
     geometry::{Geometry, Primitive},
-    maths::point::get_shortest_distance_between_points,
+    maths::{
+        line::{
+            get_shortest_distance_between_lines, get_shortest_distance_between_points_and_lines,
+        },
+        point::get_shortest_distance_between_points,
+    },
 };
 
 // TODO: add bounding spheres and other features to be able to cull the search space
@@ -66,13 +71,9 @@ fn get_shortest_distance_between_primitives(
         (Primitive::PointPrimitive(a), Primitive::PointPrimitive(b)) => {
             return get_shortest_distance_between_points(a, b);
         }
-        // TODO: etc..
-        // (PrimitiveType::Point, PrimitiveType::Line) => {
-        //     return get_shortest_distance_between_point_and_line(primitive, parent_primitive);
-        // }
-        // (PrimitiveType::Line, PrimitiveType::Point) => {
-        //     return get_shortest_distance_between_point_and_line(parent_primitive, primitive);
-        // }
+        (Primitive::LinePrimitive(a), Primitive::LinePrimitive(b)) => {
+            return get_shortest_distance_between_lines(a, b);
+        }
         (_, _) => {
             return Err(TesseraError::UnsupportedPrimitiveComparison(format!(
                 "{:?}",
