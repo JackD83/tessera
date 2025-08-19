@@ -71,6 +71,12 @@ fn get_shortest_distance_between_primitives(
         (Primitive::PointPrimitive(a), Primitive::PointPrimitive(b)) => {
             return get_shortest_distance_between_points(a, b);
         }
+        (Primitive::PointPrimitive(a), Primitive::LinePrimitive(b)) => {
+            return get_shortest_distance_between_points_and_lines(a, b);
+        }
+        (Primitive::LinePrimitive(a), Primitive::PointPrimitive(b)) => {
+            return get_shortest_distance_between_points_and_lines(b, a);
+        }
         (Primitive::LinePrimitive(a), Primitive::LinePrimitive(b)) => {
             return get_shortest_distance_between_lines(a, b);
         }

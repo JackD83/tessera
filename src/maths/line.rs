@@ -6,6 +6,25 @@ use crate::{
 
 const PARALLEL_LINE_EPSILON: f64 = 1e-10;
 
+pub fn get_shortest_distance_between_points_and_lines(
+    a: &PointPrimitive,
+    b: &LinePrimitive,
+) -> Result<f64, TesseraError> {
+    let mut shortest_distance = f64::INFINITY;
+
+    for a_point in a.iter_vertices() {
+        for (b_start, b_end) in b.iter_vertices() {
+            let distance = distance_from_point_to_line_segment_squared(a_point, b_start, b_end);
+
+            if distance < shortest_distance {
+                shortest_distance = distance;
+            }
+        }
+    }
+
+    return Ok(shortest_distance.sqrt());
+}
+
 pub fn get_shortest_distance_between_lines(
     a: &LinePrimitive,
     b: &LinePrimitive,
@@ -34,8 +53,6 @@ pub fn get_shortest_distance_between_lines(
     b_end: The end point of the second line segment
 
     Returns the squared distance between the two line segments.
-
-
 */
 fn line_distance_squared(
     a_start: &[f32; 3],
