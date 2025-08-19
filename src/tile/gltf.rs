@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{
     error::TesseraError,
-    geometry::{Geometry, Primitive, PrimitiveType},
+    geometry::{Geometry, LinePrimitive, PointPrimitive, Primitive, TrianglePrimitive},
     utils::resolve_uri,
 };
 
@@ -64,9 +64,7 @@ pub fn gltf_to_geometry(
             for primitive in mesh.primitives() {
                 let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
-                let primitive_type = gltf_primitive_type_to_geometry_primitive_type(&primitive)?;
-
-                let mut geometry_primitive = Primitive::new(primitive_type);
+                let mut geometry_primitive = create_primitive_from_gltf_primitive(&primitive)?;
 
                 geometry_primitive.set_vertices(reader.read_positions().unwrap().collect());
 
@@ -86,13 +84,13 @@ pub fn gltf_to_geometry(
     return Ok(geometry);
 }
 
-fn gltf_primitive_type_to_geometry_primitive_type(
+fn create_primitive_from_gltf_primitive(
     primitive: &gltf::Primitive,
-) -> Result<PrimitiveType, TesseraError> {
+) -> Result<Primitive, TesseraError> {
     match primitive.mode() {
-        Mode::Triangles => Ok(PrimitiveType::Triangle),
-        Mode::Lines => Ok(PrimitiveType::Line),
-        Mode::Points => Ok(PrimitiveType::Point),
+        Mode::Triangles => Ok(Primitive::TrianglePrimitive(TrianglePrimitive::new())),
+        Mode::Lines => Ok(Primitive::LinePrimitive(LinePrimitive::new())),
+        Mode::Points => Ok(Primitive::PointPrimitive(PointPrimitive::new())),
         // TODO: Consider supporting loops/strips/fans by expanding them
         _ => {
             return Err(TesseraError::UnsuportedGltfPrimitiveType(format!(

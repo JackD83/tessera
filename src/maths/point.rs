@@ -1,13 +1,13 @@
-use crate::{error::TesseraError, geometry::Primitive};
+use crate::{error::TesseraError, geometry::PointPrimitive};
 
 pub fn get_shortest_distance_between_points(
-    a: &Primitive,
-    b: &Primitive,
+    a: &PointPrimitive,
+    b: &PointPrimitive,
 ) -> Result<f64, TesseraError> {
     let mut shortest_distance = f64::INFINITY;
 
-    for a_point in &a.vertices {
-        for b_point in &b.vertices {
+    for a_point in a.iter_vertices() {
+        for b_point in b.iter_vertices() {
             let distance = point_distance_squared(&a_point, &b_point);
 
             if distance < shortest_distance {
@@ -29,16 +29,16 @@ fn point_distance_squared(a: &[f32; 3], b: &[f32; 3]) -> f64 {
 
 #[cfg(test)]
 mod tests {
-    use crate::geometry::PrimitiveType;
+    use crate::geometry::{PointPrimitive, Vertices};
 
     use super::*;
 
     #[test]
     fn test_get_shortest_distance_between_points() {
-        let mut a = Primitive::new(PrimitiveType::Point);
+        let mut a = PointPrimitive::new();
         a.set_vertices(vec![[0.0, 0.0, 0.0]]);
 
-        let mut b = Primitive::new(PrimitiveType::Point);
+        let mut b = PointPrimitive::new();
         b.set_vertices(vec![[1.0, 1.0, 1.0]]);
 
         let distance = get_shortest_distance_between_points(&a, &b);
@@ -48,10 +48,10 @@ mod tests {
 
     #[test]
     fn test_get_shortest_distance_between_same_points() {
-        let mut a = Primitive::new(PrimitiveType::Point);
+        let mut a = PointPrimitive::new();
         a.set_vertices(vec![[1.0, 1.0, 1.0]]);
 
-        let mut b = Primitive::new(PrimitiveType::Point);
+        let mut b = PointPrimitive::new();
         b.set_vertices(vec![[1.0, 1.0, 1.0]]);
 
         let distance = get_shortest_distance_between_points(&a, &b);
@@ -61,10 +61,10 @@ mod tests {
 
     #[test]
     fn test_get_shortest_distance_between_points_with_multiple_points() {
-        let mut a = Primitive::new(PrimitiveType::Point);
+        let mut a = PointPrimitive::new();
         a.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]);
 
-        let mut b = Primitive::new(PrimitiveType::Point);
+        let mut b = PointPrimitive::new();
         b.set_vertices(vec![[2.0, 2.0, 2.0], [3.0, 3.0, 3.0]]);
 
         let distance = get_shortest_distance_between_points(&a, &b);
@@ -74,10 +74,10 @@ mod tests {
 
     #[test]
     fn test_get_shortest_distance_between_points_with_multiple_points_that_share_a_point() {
-        let mut a = Primitive::new(PrimitiveType::Point);
+        let mut a = PointPrimitive::new();
         a.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]]);
 
-        let mut b = Primitive::new(PrimitiveType::Point);
+        let mut b = PointPrimitive::new();
         b.set_vertices(vec![[1.0, 1.0, 1.0], [2.0, 2.0, 2.0]]);
 
         let distance = get_shortest_distance_between_points(&a, &b);

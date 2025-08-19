@@ -1,6 +1,6 @@
 use crate::{
     error::TesseraError,
-    geometry::{Geometry, Primitive, PrimitiveType},
+    geometry::{Geometry, Primitive},
     maths::point::get_shortest_distance_between_points,
 };
 
@@ -60,11 +60,11 @@ fn get_shortest_distance_between_primitives(
     primitive: &Primitive,
     parent_primitive: &Primitive,
 ) -> Result<f64, TesseraError> {
-    let primitive_comparison_type = (&primitive.primitive_type, &parent_primitive.primitive_type);
+    let primitive_comparison_type = (primitive, parent_primitive);
 
     match primitive_comparison_type {
-        (PrimitiveType::Point, PrimitiveType::Point) => {
-            return get_shortest_distance_between_points(primitive, parent_primitive);
+        (Primitive::PointPrimitive(a), Primitive::PointPrimitive(b)) => {
+            return get_shortest_distance_between_points(a, b);
         }
         // TODO: etc..
         // (PrimitiveType::Point, PrimitiveType::Line) => {
