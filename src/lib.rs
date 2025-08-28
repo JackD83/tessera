@@ -1,6 +1,7 @@
 use crate::error::TesseraError;
-use crate::geometry::Geometry;
 use crate::geometry::compare::get_shortest_distance;
+use crate::geometry::{Geometry, Vertices};
+use crate::maths::sphere::Sphere;
 use crate::tile::load_tile_geometry;
 use crate::tileset::Tileset;
 use crate::tileset::traverse::{TilesetNode, parse_tileset_nodes};
@@ -13,7 +14,10 @@ pub mod tile;
 pub mod tileset;
 pub mod utils;
 
-pub fn calculate_geometric_error(tileset: &Tileset, base_dir: &Path) -> Result<(), TesseraError> {
+pub fn calculate_geometric_error(
+    tileset: &mut Tileset,
+    base_dir: &Path,
+) -> Result<(), TesseraError> {
     let (mut node_map, leaf_ids) = parse_tileset_nodes(tileset);
 
     for leaf_id in leaf_ids {
@@ -59,9 +63,31 @@ pub fn calculate_geometric_error(tileset: &Tileset, base_dir: &Path) -> Result<(
 
     println!("Node map: {:?}", node_map);
 
-    // TODO: calculate root geometric error and export data back to tileset.json
+    let root_geometry = load_tile_geometries(&node_map.get(&0).unwrap(), base_dir);
+
+    let root_geometry = root_geometry
+        .iter()
+        .map(|r| r.as_ref().unwrap())
+        .collect::<Vec<_>>();
+
+    let root_bounding_sphere = Sphere::from_points(
+        &root_geometry
+            .iter()
+            .flat_map(|geom| &geom.primitives)
+            .flat_map(|p| p.get_vertices())
+            .collect(),
+    );
+
+    // use diameter for root tile geometric error as that's the closest we have to
+    // error for not rendering the tileset at all
+    tileset.root.geometric_error = root_bounding_sphere.radius * 2.0;
+
+    // TODO: implement debug timings, and perhaps try a quick profile to see if anything is obviously slow right now
 
     println!("Base directory: {:?}", base_dir);
+
+    println!("Tileset: {:?}", tileset);
+
     return Ok(());
 }
 

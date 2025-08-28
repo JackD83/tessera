@@ -10,6 +10,14 @@ pub enum Primitive {
 }
 
 impl Primitive {
+    pub fn get_vertices(&self) -> &Vec<[f32; 3]> {
+        match self {
+            Primitive::PointPrimitive(p) => p.get_vertices(),
+            Primitive::LinePrimitive(p) => p.get_vertices(),
+            Primitive::TrianglePrimitive(p) => p.get_vertices(),
+        }
+    }
+
     pub fn set_indices(&mut self, other: Vec<u32>) {
         match self {
             Primitive::PointPrimitive(p) => p.set_indices(other),
@@ -28,6 +36,8 @@ impl Primitive {
 }
 
 pub trait Vertices {
+    fn get_vertices(&self) -> &Vec<[f32; 3]>;
+
     fn set_vertices(&mut self, other: Vec<[f32; 3]>);
 
     fn set_indices(&mut self, other: Vec<u32>);
@@ -52,6 +62,10 @@ pub struct PointPrimitive {
 }
 
 impl Vertices for PointPrimitive {
+    fn get_vertices(&self) -> &Vec<[f32; 3]> {
+        return &self.vertices;
+    }
+
     fn set_vertices(&mut self, other: Vec<[f32; 3]>) {
         self.vertices = other;
     }
@@ -68,6 +82,10 @@ pub struct LinePrimitive {
 }
 
 impl Vertices for LinePrimitive {
+    fn get_vertices(&self) -> &Vec<[f32; 3]> {
+        return &self.vertices;
+    }
+
     fn set_vertices(&mut self, other: Vec<[f32; 3]>) {
         self.vertices = other;
     }
@@ -84,6 +102,10 @@ pub struct TrianglePrimitive {
 }
 
 impl Vertices for TrianglePrimitive {
+    fn get_vertices(&self) -> &Vec<[f32; 3]> {
+        return &self.vertices;
+    }
+
     fn set_vertices(&mut self, other: Vec<[f32; 3]>) {
         self.vertices = other;
     }

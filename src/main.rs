@@ -71,9 +71,9 @@ async fn main() -> Result<(), TesseraError> {
                 .parent()
                 .unwrap_or_else(|| std::path::Path::new("."));
 
-            let doc = load_tileset(&tileset_path)?;
+            let mut doc = load_tileset(&tileset_path)?;
 
-            calculate_geometric_error(&doc, base_dir)?;
+            calculate_geometric_error(&mut doc, base_dir)?;
         }
         // No subcommand and no tileset path: show help
         (None, None) => {

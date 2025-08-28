@@ -12,12 +12,24 @@ impl Vec3 {
         Self { x, y, z }
     }
 
+    pub fn from_array(array: &[f32; 3]) -> Self {
+        Self {
+            x: array[0] as f64,
+            y: array[1] as f64,
+            z: array[2] as f64,
+        }
+    }
+
     pub fn dot(&self, other: &Self) -> f64 {
         return self.x * other.x + self.y * other.y + self.z * other.z;
     }
 
     pub fn length_squared(&self) -> f64 {
         return self.dot(self);
+    }
+
+    pub fn length(&self) -> f64 {
+        return self.length_squared().sqrt();
     }
 }
 
