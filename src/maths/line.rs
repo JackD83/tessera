@@ -4,8 +4,6 @@ use crate::{
     maths::vec::Vec3,
 };
 
-const PARALLEL_LINE_EPSILON: f64 = 1e-10;
-
 pub fn get_shortest_distance_between_points_and_lines(
     a: &PointPrimitive,
     b: &LinePrimitive,
@@ -69,7 +67,7 @@ fn line_distance_squared(
     let a: Vec3 = a_end - a_start;
     let b = b_end - b_start;
     // Vector between start points
-    let c = a_start - b_start;
+    let c = b_start - a_start;
 
     // Dot products
     let a_dot_a = a.dot(&a);
@@ -78,6 +76,8 @@ fn line_distance_squared(
     let a_dot_c = a.dot(&c);
     let b_dot_c = b.dot(&c);
 
+    let mut s: f64;
+    let mut t: f64;
     /*
 
     All points on the line segments can be expressed as:
@@ -85,54 +85,79 @@ fn line_distance_squared(
         A point on b => B(t) = b_start + t * (b_end - b_start) for 0 <= t <= 1
 
     Firstly, we find the closest point on the infinite versions of the provided line segments
-    such that S and T are unbounded, by solving for S and T like so:
+    where S is unbounded, by solving for S like so:
 
-    S = (a · a) (b · c) - (a · b) (a · c)
+    S = (b · b) (a · c) - (a · b) (b · c)
         ---------------------------------
           (a · a) (b · b) - (a · b)^2
 
-    T = (a · b) (b · c) - (b · b) (a · c)
-        ---------------------------------
-          (a · a) (b · b) - (a · b)^2
+    by clamping S to [0-1], we ensure that S is the closest point from the first line segment A
+    to the unbounded second line B.
 
-    if the lines are parallel, the denominator will be 0 (or close to) and we
-    can skip this part and just calculate from an endpoint of one of the lines.
+    We can then derive T from S like so:
+
+    T = S (a · b) - (b · c)
+        -----------------
+            (b · b)
+
+    If T is inside the range [0-1], S and T are the closest points.
+
+    If T is outside the range [0-1], it is not on the segment B, so we clamp it to [0-1] and
+    recompute S, which we can then re-clamp to [0-1] to find the closest point on the first line
+    segment A.
     */
 
     let denominator = a_dot_a * b_dot_b - a_dot_b * a_dot_b;
 
-    if denominator.abs() < PARALLEL_LINE_EPSILON {
-        // Lines are parallel, find distance from endpoints to line
-        // TODO: i think we can optimise this by projecting the ends into the segments first to find the
-        // overlap, or closest point otherwise then we only need to do one distance calculation instead of 4
-        let distance_to_a_start =
-            vec_distance_from_point_to_line_segment_squared(a_start, b_start, b_end);
-        let distance_to_a_end =
-            vec_distance_from_point_to_line_segment_squared(a_end, b_start, b_end);
-        let distance_to_b_start =
-            vec_distance_from_point_to_line_segment_squared(b_start, a_start, a_end);
-        let distance_to_b_end =
-            vec_distance_from_point_to_line_segment_squared(b_end, a_start, a_end);
-
-        return distance_to_a_start
-            .min(distance_to_a_end)
-            .min(distance_to_b_start)
-            .min(distance_to_b_end);
+    // TODO: can we just check for zero here or do we need the epsilon?
+    if denominator != 0.0 {
+        // lines are not parallel, calculate parameter S for first line segment
+        s = (b_dot_b * a_dot_c - a_dot_b * b_dot_c) / denominator;
+        s = s.clamp(0.0, 1.0);
+    } else {
+        // lines are parallel, so pick an arbitrary point on the first line
+        s = 0.0;
     }
 
-    // Lines are not parallel, find closest points
-    let s = (a_dot_a * b_dot_c - a_dot_b * a_dot_c) / denominator;
-    let t = (a_dot_b * b_dot_c - b_dot_b * a_dot_c) / denominator;
+    // find t for second line segment, closest to s
+    if b_dot_b != 0.0 {
+        t = (s * a_dot_b - b_dot_c) / b_dot_b;
 
-    // Clamp parameters to line segments
-    let s = s.clamp(0.0, 1.0);
-    let t = t.clamp(0.0, 1.0);
+        // if t is on the second line segment, s and t are closest points.
+        // if not, clamp t and recompute s, then reclamp s.
+        if t < 0.0 {
+            // t is before the start of the second line segment
+            t = 0.0;
+            if a_dot_a != 0.0 {
+                s = a_dot_c / a_dot_a;
+                s = s.clamp(0.0, 1.0);
+            } else {
+                s = 0.0;
+            }
+        } else if t > 1.0 {
+            // t is after the end of the second line segment
+            t = 1.0;
+            if a_dot_a != 0.0 {
+                s = (a_dot_b + a_dot_c) / a_dot_a;
+                s = s.clamp(0.0, 1.0);
+            } else {
+                s = 0.0;
+            }
+        }
+    } else {
+        // lines are parallel? so pick an arbitrary point on the second line
+        t = 0.0;
+        if a_dot_a != 0.0 {
+            s = a_dot_c / a_dot_a;
+            s = s.clamp(0.0, 1.0);
+        } else {
+            s = 0.0;
+        }
+    }
 
-    // Calculate closest points
+    // calculate closest points
     let closest_on_a = a_start + s * a;
-
     let closest_on_b = b_start + t * b;
-
     return (closest_on_a - closest_on_b).length_squared();
 }
 
@@ -265,7 +290,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_shortest_distance_between_lines_that_intersect() {
+    fn test_get_shortest_distance_between_lines_that_intersect_orthogonally() {
         let mut a = LinePrimitive::new();
         a.set_vertices(vec![[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
 
@@ -278,20 +303,44 @@ mod tests {
         assert_eq!(distance.unwrap(), 0.0);
     }
 
-    // TODO: this test is failing because we calculate non-parallel lines incorrectly
-    // think we can rewrite the algorithm to use fewer comparisons by parameterising each line
-    // individually and then clamping where required.
-    // #[test]
-    // fn test_get_shortest_distance_between_lines_where_line_edge_and_line_vertex_are_closest() {
-    //     let mut a = LinePrimitive::new();
-    //     a.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+    #[test]
+    fn test_get_shortest_distance_between_lines_that_intersect_but_are_not_orthogonal() {
+        let mut a = LinePrimitive::new();
+        a.set_vertices(vec![[-1.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
 
-    //     let mut b = LinePrimitive::new();
-    //     b.set_vertices(vec![[0.5, 1.0, 0.0], [1.0, 2.0, 0.0]]);
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[-1.0, -1.0, 0.0], [1.0, 1.0, 0.0]]);
 
-    //     let distance = get_shortest_distance_between_lines(&a, &b);
-    //     assert!(distance.is_ok());
-    //     // should be the distance between b's start and a's segment
-    //     assert_eq!(distance.unwrap(), 1.0);
-    // }
+        let distance = get_shortest_distance_between_lines(&a, &b);
+        assert!(distance.is_ok());
+        // should intersect at (0, 0, 0)
+        assert_eq!(distance.unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_lines_where_line_edge_and_line_vertex_are_closest() {
+        let mut a = LinePrimitive::new();
+        a.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[0.5, 1.0, 0.0], [1.0, 2.0, 0.0]]);
+
+        let distance = get_shortest_distance_between_lines(&a, &b);
+        assert!(distance.is_ok());
+        // should be the distance between b's start and a's segment
+        assert_eq!(distance.unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_lines_where_vertices_are_closest() {
+        let mut a = LinePrimitive::new();
+        a.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[5.0, 0.0, 0.0], [10.0, 0.0, 0.0]]);
+
+        let distance = get_shortest_distance_between_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 4.0);
+    }
 }
