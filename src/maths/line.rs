@@ -170,11 +170,19 @@ fn line_distance_squared(
 
     Returns the squared distance between the point and the line segment.
 */
-fn vec_distance_from_point_to_line_segment_squared(
-    point: Vec3,
-    line_start: Vec3,
-    line_end: Vec3,
+fn distance_from_point_to_line_segment_squared(
+    point: &[f32; 3],
+    line_start: &[f32; 3],
+    line_end: &[f32; 3],
 ) -> f64 {
+    let line_start = Vec3::new(
+        line_start[0] as f64,
+        line_start[1] as f64,
+        line_start[2] as f64,
+    );
+    let line_end = Vec3::new(line_end[0] as f64, line_end[1] as f64, line_end[2] as f64);
+    let point = Vec3::new(point[0] as f64, point[1] as f64, point[2] as f64);
+
     let line = line_end - line_start;
     let start_to_point = point - line_start;
 
@@ -190,31 +198,6 @@ fn vec_distance_from_point_to_line_segment_squared(
 
     let closest_point_on_segment = line_start + t * line;
     return (point - closest_point_on_segment).length_squared();
-}
-
-/*
-    Finds the shortest distance between a point and a line segment in 3D space.
-
-    point: The point to find the distance to
-    line_start: The start point of the line segment
-    line_end: The end point of the line segment
-
-    Returns the squared distance between the point and the line segment.
-*/
-fn distance_from_point_to_line_segment_squared(
-    point: &[f32; 3],
-    line_start: &[f32; 3],
-    line_end: &[f32; 3],
-) -> f64 {
-    let line_start = Vec3::new(
-        line_start[0] as f64,
-        line_start[1] as f64,
-        line_start[2] as f64,
-    );
-    let line_end = Vec3::new(line_end[0] as f64, line_end[1] as f64, line_end[2] as f64);
-    let point = Vec3::new(point[0] as f64, point[1] as f64, point[2] as f64);
-
-    return vec_distance_from_point_to_line_segment_squared(point, line_start, line_end);
 }
 
 #[cfg(test)]
@@ -342,5 +325,99 @@ mod tests {
         let distance = get_shortest_distance_between_lines(&a, &b);
         assert!(distance.is_ok());
         assert_eq!(distance.unwrap(), 4.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_multiple_lines() {
+        let mut a = LinePrimitive::new();
+        a.set_vertices(vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [2.0, 2.0, 2.0],
+            [3.0, 3.0, 3.0],
+        ]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![
+            [-5.0, 0.0, 0.0],
+            [-4.0, 0.0, 0.0],
+            [-3.0, 0.0, 0.0],
+            [-2.0, 0.0, 0.0],
+        ]);
+
+        let distance = get_shortest_distance_between_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 2.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_point_and_line_segment() {
+        let mut a = PointPrimitive::new();
+        a.set_vertices(vec![[0.5, 1.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+
+        let distance = get_shortest_distance_between_points_and_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_point_and_line_segment_where_point_is_segment_vertex() {
+        let mut a = PointPrimitive::new();
+        a.set_vertices(vec![[0.0, 0.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+
+        let distance = get_shortest_distance_between_points_and_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_point_and_line_segment_where_point_is_on_segment() {
+        let mut a = PointPrimitive::new();
+        a.set_vertices(vec![[0.5, 0.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+
+        let distance = get_shortest_distance_between_points_and_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 0.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_point_and_line_segment_where_point_is_outside_segment_but_collinear()
+     {
+        let mut a = PointPrimitive::new();
+        a.set_vertices(vec![[2.0, 0.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]]);
+
+        let distance = get_shortest_distance_between_points_and_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 1.0);
+    }
+
+    #[test]
+    fn test_get_shortest_distance_between_points_and_lines() {
+        let mut a = PointPrimitive::new();
+        a.set_vertices(vec![[1.0, 1.0, 0.0], [1.0, 2.0, 0.0], [1.0, 3.0, 0.0]]);
+
+        let mut b = LinePrimitive::new();
+        b.set_vertices(vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [2.0, -1.0, 0.0],
+        ]);
+
+        let distance = get_shortest_distance_between_points_and_lines(&a, &b);
+        assert!(distance.is_ok());
+        assert_eq!(distance.unwrap(), 1.0);
     }
 }
