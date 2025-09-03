@@ -30,8 +30,8 @@ pub fn load_tile_gltf(base_dir: &Path, uri: &String) -> Result<Geometry, Tessera
     }
 
     match gltf::import(&path) {
-        Ok((document, buffers, images)) => {
-            return gltf_to_geometry(&uri, &document, &buffers, &images);
+        Ok((document, buffers, _images)) => {
+            return gltf_to_geometry(&uri, &document, &buffers);
         }
         Err(e) => {
             return Err(TesseraError::Processing(format!(
@@ -46,7 +46,6 @@ pub fn gltf_to_geometry(
     name: &String,
     document: &gltf::Document,
     buffers: &Vec<gltf::buffer::Data>,
-    images: &Vec<gltf::image::Data>,
 ) -> Result<Geometry, TesseraError> {
     let mut geometry = Geometry::new(name.to_string());
 
