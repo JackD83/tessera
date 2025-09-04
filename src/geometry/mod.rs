@@ -1,5 +1,3 @@
-use itertools::Itertools;
-
 pub mod compare;
 
 #[derive(Debug)]
@@ -159,15 +157,38 @@ impl LinePrimitive {
     pub fn iter_vertices(&self) -> Box<dyn Iterator<Item = (&[f32; 3], &[f32; 3])> + '_> {
         match &self.indices {
             Some(index) => {
-                return Box::new(
-                    index
-                        .iter()
-                        .tuple_windows()
-                        .map(|(a, b)| (&self.vertices[*a as usize], &self.vertices[*b as usize])),
-                );
+                if index.len() == 0 {
+                    return Box::new(std::iter::empty());
+                }
+
+                let safe_index_length = if index.len() % 2 == 0 {
+                    index.len()
+                } else {
+                    index.len() - 1
+                };
+
+                return Box::new(index[..safe_index_length].chunks(2).map(|chunk| {
+                    (
+                        &self.vertices[chunk[0] as usize],
+                        &self.vertices[chunk[1] as usize],
+                    )
+                }));
             }
             None => {
-                return Box::new(self.vertices.iter().tuple_windows());
+                if self.vertices.len() == 0 {
+                    return Box::new(std::iter::empty());
+                }
+                let safe_vertex_length = if self.vertices.len() % 2 == 0 {
+                    self.vertices.len()
+                } else {
+                    self.vertices.len() - 1
+                };
+
+                return Box::new(
+                    self.vertices[..safe_vertex_length]
+                        .chunks(2)
+                        .map(|chunk| (&chunk[0], &chunk[1])),
+                );
             }
         }
     }
@@ -179,5 +200,49 @@ impl TrianglePrimitive {
             vertices: Vec::new(),
             indices: None,
         }
+    }
+}
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_iter_line_vertices() {
+        let mut primitive = LinePrimitive::new();
+        primitive.set_vertices(vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [2.0, 2.0, 2.0],
+            [3.0, 3.0, 3.0],
+            [4.0, 4.0, 4.0],
+        ]);
+
+        let mut iter = primitive.iter_vertices();
+        assert_eq!(iter.next(), Some((&[0.0, 0.0, 0.0], &[1.0, 1.0, 1.0])));
+        assert_eq!(iter.next(), Some((&[2.0, 2.0, 2.0], &[3.0, 3.0, 3.0])));
+        // last vertex should be dropped as it does not have a valid pair
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iter_line_vertices_with_indices() {
+        let mut primitive = LinePrimitive::new();
+        primitive.set_vertices(vec![
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [2.0, 2.0, 2.0],
+            [3.0, 3.0, 3.0],
+            [4.0, 4.0, 4.0],
+        ]);
+        // note: order swap here!
+        primitive.set_indices(vec![0, 2, 1, 3, 2, 1, 4]);
+
+        let mut iter = primitive.iter_vertices();
+        assert_eq!(iter.next(), Some((&[0.0, 0.0, 0.0], &[2.0, 2.0, 2.0])));
+        assert_eq!(iter.next(), Some((&[1.0, 1.0, 1.0], &[3.0, 3.0, 3.0])));
+        // repeated index should be returned as expected
+        assert_eq!(iter.next(), Some((&[2.0, 2.0, 2.0], &[1.0, 1.0, 1.0])));
+        // last vertex should be dropped as no valid index pair
+        assert_eq!(iter.next(), None);
     }
 }

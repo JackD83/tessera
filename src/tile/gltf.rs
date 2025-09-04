@@ -90,7 +90,7 @@ fn create_primitive_from_gltf_primitive(
         Mode::Triangles => Ok(Primitive::TrianglePrimitive(TrianglePrimitive::new())),
         Mode::Lines => Ok(Primitive::LinePrimitive(LinePrimitive::new())),
         Mode::Points => Ok(Primitive::PointPrimitive(PointPrimitive::new())),
-        // TODO: Consider supporting loops/strips/fans by expanding them
+        // TODO: Consider supporting loops/strips/fans by expanding them, or just tuple_windows()
         _ => {
             return Err(TesseraError::UnsuportedGltfPrimitiveType(format!(
                 "{:?}",
