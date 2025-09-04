@@ -12,12 +12,6 @@ pub(crate) struct TilesetNode<'a> {
 
     pub child_keys: Vec<u32>,
 
-    // current lower bound for geometric error
-    pub geometric_error_lower_bound: Option<f64>,
-
-    // current upper bound for geometric error
-    pub geometric_error_upper_bound: Option<f64>,
-
     // actual geometric error
     pub geometric_error: Option<f64>,
 }
@@ -51,8 +45,6 @@ pub(crate) fn parse_tileset_nodes<'a>(
             tile,
             parent_key,
             child_keys: Vec::<u32>::new(),
-            geometric_error_lower_bound: None,
-            geometric_error_upper_bound: None,
             geometric_error: None,
         };
         *current_key += 1;

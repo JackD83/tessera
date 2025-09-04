@@ -20,8 +20,16 @@ pub fn calculate_geometric_error(
 ) -> Result<(), TesseraError> {
     let (mut node_map, leaf_ids) = parse_tileset_nodes(tileset);
 
-    for leaf_id in leaf_ids {
+    // set all leaves to geometric error 0
+    for leaf_id in &leaf_ids {
+        let leaf_node = node_map.get_mut(&leaf_id).unwrap();
+        leaf_node.geometric_error = Some(0.0);
+    }
+
+    // traverse tileset from leaves to root to set geometric error per parent node
+    for leaf_id in &leaf_ids {
         let leaf_node = node_map.get(&leaf_id).unwrap();
+
         let mut current_node = leaf_node;
 
         // TODO: handle error case
@@ -50,11 +58,10 @@ pub fn calculate_geometric_error(
 
             let geometric_error = geometric_error_result.unwrap();
 
-            if parent_node.geometric_error_lower_bound.is_none()
-                || parent_node.geometric_error_lower_bound.unwrap() < geometric_error
+            if parent_node.geometric_error.is_none()
+                || parent_node.geometric_error.unwrap() < geometric_error
             {
-                // todo: is this upper or lower bound?
-                parent_node.geometric_error_lower_bound = Some(geometric_error);
+                parent_node.geometric_error = Some(geometric_error);
             }
 
             current_node = parent_node;
@@ -84,6 +91,10 @@ pub fn calculate_geometric_error(
 
     // TODO: implement debug timings, and perhaps try a quick profile to see if anything is obviously slow right now
 
+    // TODO: add a final validation step to ensure all tiles have a finite geometric error
+    // as we will need to handle cases where a tile has no content and thus would have an infinite
+    // shortest distance from above.
+
     println!("Base directory: {:?}", base_dir);
 
     println!("Tileset: {:?}", tileset);
@@ -98,7 +109,7 @@ fn load_tile_geometries(
     // TODO: fix this extraction to make it cleaner
     let tile_content_uris: Vec<String> = if node.tile.content.is_some() {
         vec![node.tile.content.as_ref().unwrap().uri.clone()]
-    } else {
+    } else if node.tile.contents.is_some() {
         node.tile
             .contents
             .as_ref()
@@ -106,6 +117,10 @@ fn load_tile_geometries(
             .iter()
             .map(|c| c.uri.clone())
             .collect()
+    } else {
+        // some tiles may have no content because they are a placeholder or
+        // because they should be unconditionally refined.
+        vec![]
     };
 
     return tile_content_uris
