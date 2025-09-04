@@ -1,46 +1,25 @@
-use crate::{
-    error::TesseraError,
-    geometry::{LinePrimitive, PointPrimitive},
     maths::vec::Vec3,
-};
+use crate::maths::vec::Vec3;
 
-pub fn get_shortest_distance_between_points_and_lines(
-    a: &PointPrimitive,
-    b: &LinePrimitive,
-) -> Result<f64, TesseraError> {
-    let mut shortest_distance = f64::INFINITY;
+// Finds the longest squared distance between two line segments in 3D space.
+// This is effectively the adversarial part of the hausdorff distance.
+// todo: add tests
+pub fn longest_distance_between_lines_squared(
+    a_start: &[f32; 3],
+    a_end: &[f32; 3],
+    b_start: &[f32; 3],
+    b_end: &[f32; 3],
+) -> f64 {
+    // furthest point on A must be a vertex
+    // if A and B are parallel, the orthogonal distance is the same
+    // if A and B are collinear, it's just the distance between them from the furthest vertex
+    // if neither, one of A's vertices must be further than the other, making it the furthest point
+    let a_start_distance =
+        shortest_distance_from_point_to_line_segment_squared(a_start, b_start, b_end);
+    let a_end_distance =
+        shortest_distance_from_point_to_line_segment_squared(a_end, b_start, b_end);
 
-    for a_point in a.iter_vertices() {
-        for (b_start, b_end) in b.iter_vertices() {
-            let distance =
-                shortest_distance_from_point_to_line_segment_squared(a_point, b_start, b_end);
-
-            if distance < shortest_distance {
-                shortest_distance = distance;
-            }
-        }
-    }
-
-    return Ok(shortest_distance.sqrt());
-}
-
-pub fn get_shortest_distance_between_lines(
-    a: &LinePrimitive,
-    b: &LinePrimitive,
-) -> Result<f64, TesseraError> {
-    let mut shortest_distance = f64::INFINITY;
-
-    for (a_start, a_end) in a.iter_vertices() {
-        for (b_start, b_end) in b.iter_vertices() {
-            let distance = shortest_line_distance_squared(&a_start, &a_end, &b_start, &b_end);
-
-            if distance < shortest_distance {
-                shortest_distance = distance;
-            }
-        }
-    }
-
-    return Ok(shortest_distance.sqrt());
+    return a_start_distance.max(a_end_distance);
 }
 
 /*
@@ -53,7 +32,7 @@ pub fn get_shortest_distance_between_lines(
 
     Returns the squared shortest distance between the two line segments.
 */
-fn shortest_line_distance_squared(
+pub fn shortest_line_distance_squared(
     a_start: &[f32; 3],
     a_end: &[f32; 3],
     b_start: &[f32; 3],
@@ -171,7 +150,7 @@ fn shortest_line_distance_squared(
 
     Returns the squared distance between the point and the line segment.
 */
-fn shortest_distance_from_point_to_line_segment_squared(
+pub fn shortest_distance_from_point_to_line_segment_squared(
     point: &[f32; 3],
     line_start: &[f32; 3],
     line_end: &[f32; 3],

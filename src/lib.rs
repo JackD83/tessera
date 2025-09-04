@@ -1,6 +1,6 @@
 use crate::error::TesseraError;
-use crate::geometry::compare::get_shortest_distance;
-use crate::geometry::{Geometry, Vertices};
+use crate::geometry::Geometry;
+use crate::geometry::compare::get_geometric_error_between_geometries;
 use crate::maths::sphere::Sphere;
 use crate::tile::load_tile_geometry;
 use crate::tileset::Tileset;
@@ -50,7 +50,7 @@ pub fn calculate_geometric_error(
                 .collect::<Vec<_>>();
 
             let geometric_error_result =
-                get_shortest_distance(&leaf_geometries, &parent_geometries);
+                get_geometric_error_between_geometries(&leaf_geometries, &parent_geometries);
 
             if geometric_error_result.is_err() {
                 return Err(geometric_error_result.err().unwrap());

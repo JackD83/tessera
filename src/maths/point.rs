@@ -19,7 +19,7 @@ pub fn get_shortest_distance_between_points(
     return Ok(shortest_distance.sqrt());
 }
 
-fn point_distance_squared(a: &[f32; 3], b: &[f32; 3]) -> f64 {
+pub fn point_distance_squared(a: &[f32; 3], b: &[f32; 3]) -> f64 {
     let dx: f64 = a[0] as f64 - b[0] as f64;
     let dy: f64 = a[1] as f64 - b[1] as f64;
     let dz: f64 = a[2] as f64 - b[2] as f64;

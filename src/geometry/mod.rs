@@ -1,4 +1,5 @@
 pub mod compare;
+pub mod delta;
 
 #[derive(Debug)]
 pub enum Primitive {
