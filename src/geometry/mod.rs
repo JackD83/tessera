@@ -207,19 +207,48 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_iter_point_vertices() {
+        let mut primitive = PointPrimitive::new();
+        primitive.set_vertices(vec![[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [2.0, 3.0, 4.0]]);
+
+        let mut iter = primitive.iter_vertices();
+
+        assert_eq!(iter.next(), Some(&[0.0, 1.0, 2.0]));
+        assert_eq!(iter.next(), Some(&[1.0, 2.0, 3.0]));
+        assert_eq!(iter.next(), Some(&[2.0, 3.0, 4.0]));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn test_iter_point_vertices_with_indices() {
+        let mut primitive = PointPrimitive::new();
+        primitive.set_vertices(vec![[0.0, 1.0, 2.0], [1.0, 2.0, 3.0], [2.0, 3.0, 4.0]]);
+        primitive.set_indices(vec![0, 2, 2, 1]);
+
+        let mut iter = primitive.iter_vertices();
+
+        assert_eq!(iter.next(), Some(&[0.0, 1.0, 2.0]));
+        assert_eq!(iter.next(), Some(&[2.0, 3.0, 4.0]));
+        // repeated index should be returned as expected
+        assert_eq!(iter.next(), Some(&[2.0, 3.0, 4.0]));
+        assert_eq!(iter.next(), Some(&[1.0, 2.0, 3.0]));
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
     fn test_iter_line_vertices() {
         let mut primitive = LinePrimitive::new();
         primitive.set_vertices(vec![
-            [0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0],
-            [2.0, 2.0, 2.0],
-            [3.0, 3.0, 3.0],
-            [4.0, 4.0, 4.0],
+            [1.0, 1.0, 2.0],
+            [1.0, 2.0, 3.0],
+            [2.0, 3.0, 4.0],
+            [3.0, 4.0, 5.0],
+            [4.0, 5.0, 6.0],
         ]);
 
         let mut iter = primitive.iter_vertices();
-        assert_eq!(iter.next(), Some((&[0.0, 0.0, 0.0], &[1.0, 1.0, 1.0])));
-        assert_eq!(iter.next(), Some((&[2.0, 2.0, 2.0], &[3.0, 3.0, 3.0])));
+        assert_eq!(iter.next(), Some((&[1.0, 1.0, 2.0], &[1.0, 2.0, 3.0])));
+        assert_eq!(iter.next(), Some((&[2.0, 3.0, 4.0], &[3.0, 4.0, 5.0])));
         // last vertex should be dropped as it does not have a valid pair
         assert_eq!(iter.next(), None);
     }
@@ -228,20 +257,20 @@ mod tests {
     fn test_iter_line_vertices_with_indices() {
         let mut primitive = LinePrimitive::new();
         primitive.set_vertices(vec![
-            [0.0, 0.0, 0.0],
-            [1.0, 1.0, 1.0],
-            [2.0, 2.0, 2.0],
-            [3.0, 3.0, 3.0],
-            [4.0, 4.0, 4.0],
+            [0.0, 1.0, 2.0],
+            [1.0, 2.0, 3.0],
+            [2.0, 3.0, 4.0],
+            [3.0, 4.0, 5.0],
+            [4.0, 5.0, 6.0],
         ]);
         // note: order swap here!
         primitive.set_indices(vec![0, 2, 1, 3, 2, 1, 4]);
 
         let mut iter = primitive.iter_vertices();
-        assert_eq!(iter.next(), Some((&[0.0, 0.0, 0.0], &[2.0, 2.0, 2.0])));
-        assert_eq!(iter.next(), Some((&[1.0, 1.0, 1.0], &[3.0, 3.0, 3.0])));
+        assert_eq!(iter.next(), Some((&[0.0, 1.0, 2.0], &[2.0, 3.0, 4.0])));
+        assert_eq!(iter.next(), Some((&[1.0, 2.0, 3.0], &[3.0, 4.0, 5.0])));
         // repeated index should be returned as expected
-        assert_eq!(iter.next(), Some((&[2.0, 2.0, 2.0], &[1.0, 1.0, 1.0])));
+        assert_eq!(iter.next(), Some((&[2.0, 3.0, 4.0], &[1.0, 2.0, 3.0])));
         // last vertex should be dropped as no valid index pair
         assert_eq!(iter.next(), None);
     }
