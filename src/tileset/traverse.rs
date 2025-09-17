@@ -3,61 +3,74 @@ use std::collections::HashMap;
 use crate::tileset::{Tile, Tileset};
 
 #[derive(Debug)]
-pub(crate) struct TilesetNode<'a> {
-    pub key: u32,
+pub(crate) struct TilesetNode {
+    pub id: usize,
 
-    pub tile: &'a Tile,
+    pub content: Vec<String>,
 
-    pub parent_key: Option<u32>,
+    pub parent_id: Option<usize>,
 
-    pub child_keys: Vec<u32>,
+    pub child_ids: Vec<usize>,
 
     // actual geometric error
     pub geometric_error: Option<f64>,
 }
 
-impl<'a> TilesetNode<'a> {
-    pub fn add_child(&mut self, child_key: u32) {
-        self.child_keys.push(child_key);
+impl TilesetNode {
+    pub fn add_content(&mut self, content: String) {
+        self.content.push(content);
+    }
+
+    pub fn add_child(&mut self, child_id: usize) {
+        self.child_ids.push(child_id);
     }
 
     pub fn is_leaf(&self) -> bool {
-        self.child_keys.is_empty()
+        self.child_ids.is_empty()
     }
 }
 
-pub(crate) fn parse_tileset_nodes<'a>(
-    tileset: &'a Tileset,
-) -> (HashMap<u32, TilesetNode<'a>>, Vec<u32>) {
-    let mut node_map = HashMap::<u32, TilesetNode>::new();
-    let mut leaf_ids = Vec::<u32>::new();
-    let mut current_key: u32 = 0;
+pub(crate) fn parse_tileset_nodes(
+    tileset: &Tileset,
+) -> (HashMap<usize, TilesetNode>, usize, Vec<usize>) {
+    let mut node_map = HashMap::<usize, TilesetNode>::new();
+    let mut leaf_ids = Vec::<usize>::new();
 
-    fn traverse<'a>(
-        tile: &'a Tile,
-        parent_key: Option<u32>,
-        node_map: &mut HashMap<u32, TilesetNode<'a>>,
-        current_key: &mut u32,
-        leaf_ids: &mut Vec<u32>,
-    ) -> u32 {
+    fn traverse(
+        tile: &Tile,
+        parent_id: Option<usize>,
+        node_map: &mut HashMap<usize, TilesetNode>,
+        leaf_ids: &mut Vec<usize>,
+    ) -> usize {
         let mut node = TilesetNode {
-            key: *current_key,
-            tile,
-            parent_key,
-            child_keys: Vec::<u32>::new(),
+            id: tile.id,
+            content: Vec::<String>::new(),
+            parent_id,
+            child_ids: Vec::<usize>::new(),
             geometric_error: None,
         };
-        *current_key += 1;
 
+        // handle content, if exists
+        // some tiles may have no content because they are a placeholder or
+        // because they should be unconditionally refined.
+        if let Some(content) = &tile.content {
+            node.add_content(content.uri.clone());
+        } else if let Some(contents) = &tile.contents {
+            contents
+                .iter()
+                .for_each(|c| node.add_content(c.uri.clone()));
+        };
+
+        // handle children/leaves
         if !tile.children.is_empty() {
             for child in &tile.children {
-                let new_node_key = traverse(child, Some(node.key), node_map, current_key, leaf_ids);
+                let child_id = traverse(child, Some(node.id), node_map, leaf_ids);
 
-                node.add_child(new_node_key);
+                node.add_child(child_id);
             }
         }
 
-        let key = node.key;
+        let key = node.id;
         if node.is_leaf() {
             leaf_ids.push(key);
         }
@@ -66,13 +79,7 @@ pub(crate) fn parse_tileset_nodes<'a>(
         return key;
     }
 
-    traverse(
-        &tileset.root,
-        None,
-        &mut node_map,
-        &mut current_key,
-        &mut leaf_ids,
-    );
+    traverse(&tileset.root, None, &mut node_map, &mut leaf_ids);
 
-    return (node_map, leaf_ids);
+    return (node_map, tileset.root.id, leaf_ids);
 }

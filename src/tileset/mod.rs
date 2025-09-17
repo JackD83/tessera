@@ -75,6 +75,9 @@ pub struct Property {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Tile {
+    #[serde(skip)]
+    pub id: usize,
+
     // The bounding volume that encloses the tile.
     #[serde(rename = "boundingVolume")]
     pub bounding_volume: BoundingVolume,
