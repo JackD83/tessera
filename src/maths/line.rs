@@ -1,4 +1,3 @@
-    maths::vec::Vec3,
 use crate::maths::vec::Vec3;
 
 // Finds the longest squared distance between two line segments in 3D space.
