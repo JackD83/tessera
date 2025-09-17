@@ -1,5 +1,6 @@
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
+use tessera::tileset::writer::write_tileset;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -14,10 +15,6 @@ use tessera::error::TesseraError;
     long_about = "Tessera is a CLI tool to traverse a 3D Tiles tileset and calculate a correct geometric error for each tile."
 )]
 struct Cli {
-    /// Optional: path to tileset.json (equivalent to `recalculate` subcommand)
-    #[arg(value_name = "PATH")]
-    tileset: Option<String>,
-
     #[command(subcommand)]
     command: Option<Commands>,
 
@@ -35,8 +32,16 @@ enum Commands {
     /// Recalculate the geometric error of the tiles in a 3D Tiles tileset.json
     Recalculate {
         /// Path to tileset.json
-        #[arg(value_name = "PATH")]
+        #[arg(short('i'), long("input"), value_name = "PATH")]
         tileset: String,
+
+        /// Path to output tileset.json
+        #[arg(short('o'), long("output"), value_name = "PATH")]
+        output: String,
+
+        /// Whether to pretty print the output tileset.json
+        #[arg(short('p'), long("pretty"), action = clap::ArgAction::SetTrue)]
+        pretty: Option<bool>,
     },
 }
 
@@ -61,8 +66,12 @@ async fn main() -> Result<(), TesseraError> {
 
     info!("Starting Tessera CLI");
 
-    match (cli.command, cli.tileset) {
-        (Some(Commands::Recalculate { tileset }), _) | (None, Some(tileset)) => {
+    match cli.command {
+        Some(Commands::Recalculate {
+            tileset,
+            output,
+            pretty,
+        }) => {
             use std::path::PathBuf;
             use tessera::tileset::loader::load_tileset;
 
@@ -74,9 +83,11 @@ async fn main() -> Result<(), TesseraError> {
             let mut doc = load_tileset(&tileset_path)?;
 
             calculate_geometric_error(&mut doc, base_dir)?;
+
+            write_tileset(&doc, &PathBuf::from(&output), pretty.unwrap_or(false))?;
         }
         // No subcommand and no tileset path: show help
-        (None, None) => {
+        None => {
             // Print help and exit with code 2 to indicate usage
             let mut cmd = Cli::command();
             let _ = cmd.print_help();

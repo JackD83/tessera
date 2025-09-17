@@ -1,5 +1,6 @@
 pub mod loader;
 pub(crate) mod traverse;
+pub mod writer;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

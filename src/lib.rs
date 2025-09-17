@@ -92,7 +92,7 @@ pub fn calculate_geometric_error(
 
     // use diameter for root tile geometric error as that's the closest we have to
     // error for not rendering the tileset at all
-    tileset.root.geometric_error = root_bounding_sphere.radius * 2.0;
+    tileset.geometric_error = Some(root_bounding_sphere.radius * 2.0);
 
     // TODO: implement debug timings, and perhaps try a quick profile to see if anything is obviously slow right now
 
