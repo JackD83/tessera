@@ -1,5 +1,6 @@
 use crate::maths::{bounding_box::BoundingBox, vec::Vec3};
 
+#[derive(Debug)]
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f64,

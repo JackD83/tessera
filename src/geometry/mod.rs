@@ -1,3 +1,5 @@
+use crate::maths::{sphere::Sphere, vec::Vec3};
+
 pub mod compare;
 pub mod delta;
 
@@ -58,6 +60,9 @@ pub struct PointPrimitive {
 
     // Optional indices for the geometry
     pub indices: Option<Vec<u32>>,
+
+    // bounding sphere for the geometry, based on vertex data
+    pub bounding_sphere: Sphere,
 }
 
 impl Vertices for PointPrimitive {
@@ -67,6 +72,7 @@ impl Vertices for PointPrimitive {
 
     fn set_vertices(&mut self, other: Vec<[f32; 3]>) {
         self.vertices = other;
+        self.bounding_sphere = Sphere::from_points(&self.vertices.iter().collect());
     }
 
     fn set_indices(&mut self, other: Vec<u32>) {
@@ -76,8 +82,14 @@ impl Vertices for PointPrimitive {
 
 #[derive(Debug)]
 pub struct LinePrimitive {
+    // Vertex data for the geometry
     pub vertices: Vec<[f32; 3]>,
+
+    // Optional indices for the geometry
     pub indices: Option<Vec<u32>>,
+
+    // bounding sphere for the geometry, based on vertex data
+    pub bounding_sphere: Sphere,
 }
 
 impl Vertices for LinePrimitive {
@@ -87,6 +99,7 @@ impl Vertices for LinePrimitive {
 
     fn set_vertices(&mut self, other: Vec<[f32; 3]>) {
         self.vertices = other;
+        self.bounding_sphere = Sphere::from_points(&self.vertices.iter().collect());
     }
 
     fn set_indices(&mut self, other: Vec<u32>) {
@@ -96,8 +109,14 @@ impl Vertices for LinePrimitive {
 
 #[derive(Debug)]
 pub struct TrianglePrimitive {
+    // Vertex data for the geometry
     pub vertices: Vec<[f32; 3]>,
+
+    // Optional indices for the geometry
     pub indices: Option<Vec<u32>>,
+
+    // bounding sphere for the geometry, based on vertex data
+    pub bounding_sphere: Sphere,
 }
 
 impl Vertices for TrianglePrimitive {
@@ -107,6 +126,7 @@ impl Vertices for TrianglePrimitive {
 
     fn set_vertices(&mut self, other: Vec<[f32; 3]>) {
         self.vertices = other;
+        self.bounding_sphere = Sphere::from_points(&self.vertices.iter().collect());
     }
 
     fn set_indices(&mut self, other: Vec<u32>) {
@@ -132,6 +152,7 @@ impl PointPrimitive {
         PointPrimitive {
             vertices: Vec::new(),
             indices: None,
+            bounding_sphere: Sphere::new(Vec3::new(0.0, 0.0, 0.0), 0.0),
         }
     }
 
@@ -152,6 +173,7 @@ impl LinePrimitive {
         LinePrimitive {
             vertices: Vec::new(),
             indices: None,
+            bounding_sphere: Sphere::new(Vec3::new(0.0, 0.0, 0.0), 0.0),
         }
     }
 
@@ -200,6 +222,7 @@ impl TrianglePrimitive {
         TrianglePrimitive {
             vertices: Vec::new(),
             indices: None,
+            bounding_sphere: Sphere::new(Vec3::new(0.0, 0.0, 0.0), 0.0),
         }
     }
 }
