@@ -20,6 +20,10 @@ impl Vec3 {
         }
     }
 
+    pub fn to_array(&self) -> [f32; 3] {
+        return [self.x as f32, self.y as f32, self.z as f32];
+    }
+
     pub fn dot(&self, other: &Self) -> f64 {
         return self.x * other.x + self.y * other.y + self.z * other.z;
     }
@@ -74,5 +78,18 @@ impl Mul<f64> for Vec3 {
             y: self.y * scalar,
             z: self.z * scalar,
         }
+    }
+}
+
+pub struct Vec4 {
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+    pub w: f64,
+}
+
+impl Vec4 {
+    pub fn new(x: f64, y: f64, z: f64, w: f64) -> Self {
+        Self { x, y, z, w }
     }
 }

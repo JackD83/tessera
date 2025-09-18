@@ -1,9 +1,13 @@
 use gltf::mesh::{Mode, util::ReadIndices};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     error::TesseraError,
     geometry::{Geometry, LinePrimitive, PointPrimitive, Primitive, TrianglePrimitive},
+    maths::{matrix::Mat4, vec::Vec3},
     utils::resolve_uri,
 };
 
@@ -42,6 +46,7 @@ pub fn load_tile_gltf(base_dir: &Path, uri: &String) -> Result<Geometry, Tessera
     }
 }
 
+// TODO: add unit tests for this to ensure transform is correctly applied in edge cases
 pub fn gltf_to_geometry(
     name: &String,
     document: &gltf::Document,
@@ -50,22 +55,47 @@ pub fn gltf_to_geometry(
     let mut geometry = Geometry::new(name.to_string());
 
     for scene in document.scenes() {
-        for node in scene.nodes() {
+        let mut transform_stack = Vec::<Mat4>::new();
+        let mut nodes = scene.nodes().collect::<VecDeque<_>>();
+
+        while !nodes.is_empty() {
+            let node = nodes.pop_front().unwrap();
+
+            let node_transform = Mat4::from_column_major_nested_array(&node.transform().matrix());
+            transform_stack.push(node_transform);
+
+            // depth-first to match our transform stack
+            node.children().for_each(|child| nodes.push_front(child));
+
             if node.mesh().is_none() {
+                // nothing else to do at this node if there's no mesh
                 continue;
             }
 
             let mesh = node.mesh().unwrap();
+            // find the current transform by multiplying all the transforms in the stack
+            let current_transform = transform_stack
+                .iter()
+                .fold(Mat4::identity(), |acc, x| acc * x);
 
-            // TODO: Add transform support, currently only direct vertex data is considered
-            // TODO: Add bounding spheres per primitive (as easily transformed) so we can
-            // avoid comparing when we know they are too far away
             for primitive in mesh.primitives() {
                 let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
 
                 let mut geometry_primitive = create_primitive_from_gltf_primitive(&primitive)?;
 
-                geometry_primitive.set_vertices(reader.read_positions().unwrap().collect());
+                // TODO: consider not applying the transforms directly and instead storing them
+                // as part of the geometry, if the on-the-fly computation cost is acceptable
+                // for the reduction in memory usage.
+                let transformed_vertices = reader
+                    .read_positions()
+                    .unwrap()
+                    .map(|v| {
+                        let as_vec = Vec3::from_array(&v);
+                        let transformed = current_transform * as_vec;
+                        return transformed.to_array();
+                    })
+                    .collect();
+                geometry_primitive.set_vertices(transformed_vertices);
 
                 if let Some(indices) = reader.read_indices() {
                     geometry_primitive.set_indices(match indices {
