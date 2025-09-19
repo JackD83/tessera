@@ -316,6 +316,115 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_point_is_a_vertex() {
+        let point = [0.0, 0.0, 0.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_point_is_on_an_edge() {
+        let point = [0.5, 0.0, 0.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_point_is_inside_the_triangle() {
+        let point = [0.2, 0.2, 0.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_coplanar_point_is_outside_triangle_closest_to_vertex()
+     {
+        let point = [2.0, 0.0, 0.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_coplanar_point_is_outside_triangle_closest_to_edge()
+     {
+        let point = [0.5, -1.0, 0.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_point_projects_inside_triangle()
+    {
+        let point = [0.2, 0.2, 1.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_point_projects_outside_triangle_closest_to_vertex()
+     {
+        let point = [4.0, 0.0, 4.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 5.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_point_to_triangle_squared_where_point_projects_outside_triangle_closest_to_edge()
+     {
+        let point = [0.5, -3.0, 4.0];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_point_to_triangle_squared(
+            &point,
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 5.0);
+    }
+
+    #[test]
     fn test_shortest_triangle_distance_where_vertex_is_closest() {
         let a_a = [0.0, 0.0, 0.0];
         let a_b = [0.0, 1.0, 0.0];
