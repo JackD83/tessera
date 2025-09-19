@@ -101,3 +101,25 @@ impl Vec4 {
         Self { x, y, z, w }
     }
 }
+
+mod tests {
+    use super::*;
+
+    // TODO: expand vec3 tests for safety
+
+    #[test]
+    fn test_vec3_cross_with_different_vectors() {
+        let a = Vec3::new(1.0, 2.0, 3.0);
+        let b = Vec3::new(4.0, 5.0, 6.0);
+        let c = a.cross(&b);
+        assert_eq!(c, Vec3::new(-3.0, 6.0, -3.0));
+    }
+
+    #[test]
+    fn test_vec3_cross_with_colinear_vectors() {
+        let a = Vec3::new(1.0, 2.0, 3.0);
+        let b = Vec3::new(2.0, 4.0, 6.0);
+        let c = a.cross(&b);
+        assert_eq!(c, Vec3::new(0.0, 0.0, 0.0));
+    }
+}

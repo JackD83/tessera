@@ -252,3 +252,74 @@ fn maybe_shortest_distance_between_face_of_a_and_vertex_of_b(
         separated: triangles_are_separated,
     };
 }
+
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shortest_triangle_distance_where_vertex_is_closest() {
+        let a_a = [0.0, 0.0, 0.0];
+        let a_b = [0.0, 1.0, 0.0];
+        let a_c = [1.0, 0.5, 0.0];
+        let b_a = [10.0, 0.0, 0.0];
+        let b_b = [10.0, 1.0, 0.0];
+        let b_c = [9.0, 0.5, 0.0];
+
+        let distance = shortest_triangle_distance_squared(&a_a, &a_b, &a_c, &b_a, &b_b, &b_c);
+        assert_eq!(distance.sqrt(), 8.0);
+    }
+
+    #[test]
+    fn test_shortest_triangle_distance_where_edge_is_closest() {
+        let a_a = [0.0, 0.0, 0.0];
+        let a_b = [1.0, 1.0, 0.0];
+        let a_c = [1.0, 0.0, 0.0];
+        let b_a = [10.0, 0.0, 0.0];
+        let b_b = [9.0, 1.0, 0.0];
+        let b_c = [9.0, 0.0, 0.0];
+
+        let distance = shortest_triangle_distance_squared(&a_a, &a_b, &a_c, &b_a, &b_b, &b_c);
+        assert_eq!(distance.sqrt(), 8.0);
+    }
+
+    #[test]
+    fn test_shortest_triangle_distance_with_identical_triangles() {
+        let a_a = [0.0, 0.0, 0.0];
+        let a_b = [1.0, 0.0, 0.0];
+        let a_c = [0.0, 1.0, 0.0];
+        let b_a = [0.0, 0.0, 0.0];
+        let b_b = [1.0, 0.0, 0.0];
+        let b_c = [0.0, 1.0, 0.0];
+
+        let distance = shortest_triangle_distance_squared(&a_a, &a_b, &a_c, &b_a, &b_b, &b_c);
+        assert_eq!(distance.sqrt(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_triangle_distance_with_coplanar_triangles() {
+        let a_a = [0.0, 0.0, 0.0];
+        let a_b = [1.0, 0.0, 0.0];
+        let a_c = [0.0, 1.0, 0.0];
+        let b_a = [5.0, 0.0, 0.0];
+        let b_b = [6.0, 0.0, 0.0];
+        let b_c = [5.0, 6.0, 0.0];
+
+        // distance should be between edge a_BC and vertex b_a
+        let distance = shortest_triangle_distance_squared(&a_a, &a_b, &a_c, &b_a, &b_b, &b_c);
+        assert_eq!(distance.sqrt(), 4.0);
+    }
+
+    #[test]
+    fn test_shortest_triangle_distance_with_triangles_that_are_parallel() {
+        let a_a = [0.0, 0.0, 0.0];
+        let a_b = [1.0, 0.0, 0.0];
+        let a_c = [0.0, 1.0, 0.0];
+        let b_a = [0.0, 0.0, 3.0];
+        let b_b = [1.0, 0.0, 3.0];
+        let b_c = [0.0, 1.0, 3.0];
+
+        // distance should be equal along z-axis
+        let distance = shortest_triangle_distance_squared(&a_a, &a_b, &a_c, &b_a, &b_b, &b_c);
+        assert_eq!(distance.sqrt(), 3.0);
+    }
+}
