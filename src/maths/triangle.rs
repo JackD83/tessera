@@ -6,6 +6,28 @@ use crate::maths::{
 const TRIANGLE_VERTEX_COUNT: usize = 3;
 const EPSILON: f64 = 1e-15;
 
+// Finds the longest shortest squared distance between two triangles in 3D space.
+// This is effectively the adversarial part of the hausdorff distance.
+// todo: add tests, formalise better in docstrings
+pub fn longest_distance_between_triangles_squared(
+    a_a: &[f32; 3],
+    a_b: &[f32; 3],
+    a_c: &[f32; 3],
+    b_a: &[f32; 3],
+    b_b: &[f32; 3],
+    b_c: &[f32; 3],
+) -> f64 {
+    // the longest distance traversed from a triangle a to triangle b must be from one of triangle a's
+    // vertices to some point on triangle b.
+    // if A and B are parallel, the orthogonal distance is the same everywhere
+    // if A and B are not parallel, it's just the distance between them from the furthest vertex
+    let a_a_distance = shortest_distance_from_point_to_triangle_squared(a_a, b_a, b_b, b_c);
+    let a_b_distance = shortest_distance_from_point_to_triangle_squared(a_b, b_a, b_b, b_c);
+    let a_c_distance = shortest_distance_from_point_to_triangle_squared(a_c, b_a, b_b, b_c);
+
+    return a_a_distance.max(a_b_distance).max(a_c_distance);
+}
+
 // Finds the shortest squared distance between a point and a triangle in 3D space.
 pub fn shortest_distance_from_point_to_triangle_squared(
     point: &[f32; 3],

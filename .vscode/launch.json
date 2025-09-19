@@ -12,7 +12,14 @@
         "args": ["build", "--lib", "--bin", "tessera"]
       },
       "program": "${workspaceFolder}/target/debug/tessera",
-      "args": ["tileset.json"]
+      "args": [
+        "recalculate",
+        "-i",
+        "tileset_dragon.json",
+        "-o",
+        "output_test.json",
+        "-p"
+      ]
     }
   ]
 }

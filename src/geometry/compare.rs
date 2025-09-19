@@ -5,6 +5,7 @@ use crate::{
         delta::{
             get_renderable_delta_between_line_and_point, get_renderable_delta_between_lines,
             get_renderable_delta_between_point_and_line, get_renderable_delta_between_points,
+            get_renderable_delta_between_triangles,
         },
     },
 };
@@ -80,6 +81,9 @@ fn get_renderable_delta_between_primitives(
         }
         (Primitive::LinePrimitive(a), Primitive::LinePrimitive(b)) => {
             return get_renderable_delta_between_lines(a, b);
+        }
+        (Primitive::TrianglePrimitive(a), Primitive::TrianglePrimitive(b)) => {
+            return get_renderable_delta_between_triangles(a, b);
         }
         (_, _) => {
             return Err(TesseraError::UnsupportedPrimitiveComparison(format!(
