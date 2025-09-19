@@ -36,6 +36,10 @@ impl Vec3 {
         };
     }
 
+    pub fn normalize(&self) -> Self {
+        return *self * (1.0 / self.length());
+    }
+
     pub fn length_squared(&self) -> f64 {
         return self.dot(self);
     }

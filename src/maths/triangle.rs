@@ -1,7 +1,67 @@
-use crate::maths::{line::closest_points_on_lines, vec::Vec3};
+use crate::maths::{
+    line::{closest_points_on_lines, shortest_distance_from_point_to_line_segment_squared_vec},
+    vec::Vec3,
+};
 
 const TRIANGLE_VERTEX_COUNT: usize = 3;
 const EPSILON: f64 = 1e-15;
+
+// Finds the shortest squared distance between a point and a triangle in 3D space.
+pub fn shortest_distance_from_point_to_triangle_squared(
+    point: &[f32; 3],
+    triangle_a: &[f32; 3],
+    triangle_b: &[f32; 3],
+    triangle_c: &[f32; 3],
+) -> f64 {
+    let point = Vec3::from_array(point);
+    let triangle = [
+        Vec3::from_array(triangle_a),
+        Vec3::from_array(triangle_b),
+        Vec3::from_array(triangle_c),
+    ];
+
+    let ab = triangle[1] - triangle[0];
+    let ac = triangle[2] - triangle[0];
+    let ap = point - triangle[0];
+
+    // project p onto the plane of the triangle
+    let normal = ab.cross(&ac).normalize();
+    let distance_to_plane = ap.dot(&normal);
+    let projected_point = point - normal * distance_to_plane;
+
+    // check if the projected point is inside the triangle
+    // we want to find U and V such that: projected_point = a + u * ab + v * ac
+    // which simplifies to: (projected_point - a) = u * ab + v * ac
+    // using dot products, we can solve for u and v via 2 linear equations
+    let a_to_projected_point = projected_point - triangle[0];
+    let d00 = ab.dot(&ab);
+    let d01 = ab.dot(&ac);
+    let d11 = ac.dot(&ac);
+    let d20 = a_to_projected_point.dot(&ab);
+    let d21 = a_to_projected_point.dot(&ac);
+
+    // solve for u and v
+    let denom = d00 * d11 - d01 * d01;
+    let u = (d11 * d20 - d01 * d21) / denom;
+    let v = (d00 * d21 - d01 * d20) / denom;
+
+    // if u and v are positive and their sum is less than or equal to 1, the point is inside the triangle
+    if u >= 0.0 && v >= 0.0 && u + v <= 1.0 {
+        // we already have the squared value, but it's cheaper than always
+        // sqrting the alternative path which is more common, so we normalise here.
+        return distance_to_plane.powi(2);
+    }
+
+    // the closest point is on one of the edges of the triangle, we just need to find which
+    let point_to_ab =
+        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[0], triangle[1]);
+    let point_to_bc =
+        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[1], triangle[2]);
+    let point_to_ca =
+        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[2], triangle[0]);
+
+    return point_to_ab.min(point_to_bc).min(point_to_ca);
+}
 
 /*
     Finds the shortest squared distance between two triangles in 3D space.
@@ -129,7 +189,6 @@ pub fn shortest_triangle_distance_squared(
     {
         return (closest_point_on_a - closest_point_on_b).length_squared();
     }
-    // otherwise, we
     triangles_are_separated = triangles_are_separated || maybe_shortest_distance.separated;
 
     // step 3 (TODO: walk through algo just to prove step 3 is correct)

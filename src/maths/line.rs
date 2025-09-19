@@ -183,6 +183,23 @@ pub fn shortest_distance_from_point_to_line_segment_squared(
     let line_end = Vec3::new(line_end[0] as f64, line_end[1] as f64, line_end[2] as f64);
     let point = Vec3::new(point[0] as f64, point[1] as f64, point[2] as f64);
 
+    return shortest_distance_from_point_to_line_segment_squared_vec(point, line_start, line_end);
+}
+
+/*
+    Finds the shortest distance between a point and a line segment in 3D space.
+
+    point: The point to find the distance to
+    line_start: The start point of the line segment
+    line_end: The end point of the line segment
+
+    Returns the squared distance between the point and the line segment.
+*/
+pub fn shortest_distance_from_point_to_line_segment_squared_vec(
+    point: Vec3,
+    line_start: Vec3,
+    line_end: Vec3,
+) -> f64 {
     let line = line_end - line_start;
     let start_to_point = point - line_start;
 
