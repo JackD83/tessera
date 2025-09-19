@@ -43,7 +43,28 @@ pub fn shortest_line_distance_squared(
     let b_start = Vec3::new(b_start[0] as f64, b_start[1] as f64, b_start[2] as f64);
     let b_end = Vec3::new(b_end[0] as f64, b_end[1] as f64, b_end[2] as f64);
 
-    let a: Vec3 = a_end - a_start;
+    let (closest_on_a, closest_on_b) = closest_points_on_lines(a_start, a_end, b_start, b_end);
+
+    return (closest_on_a - closest_on_b).length_squared();
+}
+
+/*
+    Finds the closest points on two line segments in 3D space.
+
+    a_start: The start point of the first line segment
+    a_end: The end point of the first line segment
+    b_start: The start point of the second line segment
+    b_end: The end point of the second line segment
+
+    Returns the closest points on the two line segments.
+*/
+pub fn closest_points_on_lines(
+    a_start: Vec3,
+    a_end: Vec3,
+    b_start: Vec3,
+    b_end: Vec3,
+) -> (Vec3, Vec3) {
+    let a = a_end - a_start;
     let b = b_end - b_start;
     // Vector between start points
     let c = b_start - a_start;
@@ -137,7 +158,7 @@ pub fn shortest_line_distance_squared(
     // calculate closest points
     let closest_on_a = a_start + s * a;
     let closest_on_b = b_start + t * b;
-    return (closest_on_a - closest_on_b).length_squared();
+    return (closest_on_a, closest_on_b);
 }
 
 /*

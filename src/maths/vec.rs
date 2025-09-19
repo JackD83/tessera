@@ -28,6 +28,14 @@ impl Vec3 {
         return self.x * other.x + self.y * other.y + self.z * other.z;
     }
 
+    pub fn cross(&self, other: &Self) -> Self {
+        return Self {
+            x: self.y * other.z - self.z * other.y,
+            y: self.z * other.x - self.x * other.z,
+            z: self.x * other.y - self.y * other.x,
+        };
+    }
+
     pub fn length_squared(&self) -> f64 {
         return self.dot(self);
     }
