@@ -76,6 +76,9 @@ fn get_renderable_delta_between_primitives(
         (Primitive::PointPrimitive(a), Primitive::LinePrimitive(b)) => {
             return get_renderable_delta_between_point_and_line(a, b);
         }
+        (Primitive::PointPrimitive(a), Primitive::TrianglePrimitive(b)) => {
+            return get_renderable_delta_between_point_and_triangle(a, b);
+        }
         (Primitive::LinePrimitive(a), Primitive::PointPrimitive(b)) => {
             return get_renderable_delta_between_line_and_point(a, b);
         }

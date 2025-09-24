@@ -8,7 +8,8 @@ use crate::{
         },
         point::point_distance_squared,
         triangle::{
-            longest_distance_between_triangles_squared, shortest_triangle_distance_squared,
+            longest_distance_between_triangles_squared,
+            shortest_distance_from_point_to_triangle_squared, shortest_triangle_distance_squared,
         },
     },
 };
@@ -63,6 +64,38 @@ pub fn get_renderable_delta_between_point_and_line(
         for (b_start, b_end) in parent.iter_vertices() {
             let distance =
                 shortest_distance_from_point_to_line_segment_squared(a_point, b_start, b_end);
+
+            // because a point occupies no space, any of the nearest matches will have the same distance
+            closest_distance = closest_distance.min(distance);
+        }
+
+        max_renderable_delta_across_primitive =
+            max_renderable_delta_across_primitive.max(closest_distance);
+    }
+
+    return Ok(max_renderable_delta_across_primitive.sqrt());
+}
+
+// Calculates the maximum perceptible delta between a point primitive and a triangle primitive.
+//
+// We calculate the error introduced if a leaf point primitive was replaced by a
+// simplified parent triangle primitive, aka the geometric error.
+//
+// This sound unintuitive, but it's possible that a set of points could be simplified to a triangle
+//
+// It is important to note that this is a directional algorithm meaning that the results
+// will be different if the order of the primitives is swapped.
+pub fn get_renderable_delta_between_point_and_triangle(
+    leaf: &PointPrimitive,
+    parent: &TrianglePrimitive,
+) -> Result<f64, TesseraError> {
+    let mut max_renderable_delta_across_primitive = f64::NEG_INFINITY;
+
+    for a_point in leaf.iter_vertices() {
+        let mut closest_distance = f64::INFINITY;
+
+        for (b_a, b_b, b_c) in parent.iter_vertices() {
+            let distance = shortest_distance_from_point_to_triangle_squared(a_point, b_a, b_b, b_c);
 
             // because a point occupies no space, any of the nearest matches will have the same distance
             closest_distance = closest_distance.min(distance);
