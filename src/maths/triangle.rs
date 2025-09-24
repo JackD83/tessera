@@ -576,6 +576,138 @@ mod tests {
     }
 
     #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_is_an_edge() {
+        let segment = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_is_a_vertex() {
+        let segment = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 0.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_parallel() {
+        let segment = [[-1.0, 0.0, 1.0], [2.0, 0.0, 1.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_projects_inside_triangle()
+     {
+        let segment = [[0.4, 0.2, 1.0], [0.6, 0.2, 1.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_vertex_projects_inside_triangle()
+     {
+        let segment = [[0.4, 0.2, 1.0], [2.0, 0.2, 3.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_edge_closest_to_triangle_vertex()
+     {
+        let segment = [[-1.0, 2.0, 0.0], [1.0, 2.0, 0.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_edge_closest_to_triangle_edge()
+     {
+        let segment = [[-1.0, -1.0, 0.0], [1.0, -1.0, 0.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_vertex_closest_to_triangle_vertex()
+     {
+        let segment = [[2.0, 0.0, 0.0], [4.0, 0.0, 0.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
+    fn test_shortest_distance_from_line_segment_to_triangle_squared_where_segment_vertex_closest_to_triangle_edge()
+     {
+        let segment = [[0.5, -1.0, 0.0], [0.5, -2.0, 0.0]];
+        let triangle = [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
+        let distance = shortest_distance_from_line_segment_to_triangle_squared(
+            &segment[0],
+            &segment[1],
+            &triangle[0],
+            &triangle[1],
+            &triangle[2],
+        );
+        assert_eq!(distance.sqrt(), 1.0);
+    }
+
+    #[test]
     fn test_shortest_triangle_distance_where_vertex_is_closest() {
         let a_a = [0.0, 0.0, 0.0];
         let a_b = [0.0, 1.0, 0.0];
