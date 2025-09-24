@@ -6,6 +6,30 @@ use crate::maths::{
 const TRIANGLE_VERTEX_COUNT: usize = 3;
 const EPSILON: f64 = 1e-15;
 
+// Finds the longest squared distance between a line segment and a triangle in 3D space.
+// This is effectively the adversarial part of the hausdorff distance.
+// todo: add tests, formalise better in docstrings
+pub fn longest_distance_between_line_segment_and_triangle_squared(
+    line_start: &[f32; 3],
+    line_end: &[f32; 3],
+    triangle_a: &[f32; 3],
+    triangle_b: &[f32; 3],
+    triangle_c: &[f32; 3],
+) -> f64 {
+    // the longest distance traversed from a line segment to a triangle must be from one of the line segment's
+    // vertices to some point on the triangle.
+    // if the line segment and triangle are parallel, the orthogonal distance is the same everywhere
+    // if the line segment and triangle are not parallel, it's just the distance between them from the furthest vertex
+    let line_start_distance = shortest_distance_from_point_to_triangle_squared(
+        line_start, triangle_a, triangle_b, triangle_c,
+    );
+    let line_end_distance = shortest_distance_from_point_to_triangle_squared(
+        line_end, triangle_a, triangle_b, triangle_c,
+    );
+
+    return line_start_distance.max(line_end_distance);
+}
+
 // Finds the longest shortest squared distance between two triangles in 3D space.
 // This is effectively the adversarial part of the hausdorff distance.
 // todo: add tests, formalise better in docstrings
