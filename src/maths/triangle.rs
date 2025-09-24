@@ -42,6 +42,27 @@ pub fn shortest_distance_from_point_to_triangle_squared(
         Vec3::from_array(triangle_c),
     ];
 
+    if let Some(distance_to_plane) =
+        get_point_projected_to_triangle_distance_squared_if_inside(point, &triangle)
+    {
+        return distance_to_plane;
+    }
+
+    // the closest point is on one of the edges of the triangle, we just need to find which
+    let point_to_ab =
+        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[0], triangle[1]);
+    let point_to_bc =
+        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[1], triangle[2]);
+    let point_to_ca =
+        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[2], triangle[0]);
+
+    return point_to_ab.min(point_to_bc).min(point_to_ca);
+}
+
+fn get_point_projected_to_triangle_distance_squared_if_inside(
+    point: Vec3,
+    triangle: &[Vec3; 3],
+) -> Option<f64> {
     let ab = triangle[1] - triangle[0];
     let ac = triangle[2] - triangle[0];
     let ap = point - triangle[0];
@@ -71,18 +92,126 @@ pub fn shortest_distance_from_point_to_triangle_squared(
     if u >= 0.0 && v >= 0.0 && u + v <= 1.0 {
         // we already have the squared value, but it's cheaper than always
         // sqrting the alternative path which is more common, so we normalise here.
-        return distance_to_plane.powi(2);
+        return Some(distance_to_plane.powi(2));
+    }
+    // else it's outside the triangle
+    return None;
+}
+
+/*
+    Finds the shortest squared distance between a line segment and a triangle in 3D space.
+
+    The algorithm checks for the following:
+    1. If the segment intersects the triangle, distance is 0.
+    2. The shortest distance between an edge of the triangle and the segment
+    3. The shortest distance between a vertex of the segment and the face of the triangle
+*/
+pub fn shortest_distance_from_line_segment_to_triangle_squared(
+    line_start: &[f32; 3],
+    line_end: &[f32; 3],
+    triangle_a: &[f32; 3],
+    triangle_b: &[f32; 3],
+    triangle_c: &[f32; 3],
+) -> f64 {
+    let p = Vec3::from_array(line_start);
+    let q = Vec3::from_array(line_end);
+    let triangle = [
+        Vec3::from_array(triangle_a),
+        Vec3::from_array(triangle_b),
+        Vec3::from_array(triangle_c),
+    ];
+
+    // vectors for the segment (line PQ) and triangle edges (AB, BC, AC)
+    let pq = q - p;
+    let ab = triangle[1] - triangle[0];
+    let ac = triangle[2] - triangle[0];
+    let bc = triangle[2] - triangle[1];
+    let ap = p - triangle[0];
+    let aq = q - triangle[0];
+
+    // step 1
+    // Pre-calculate dot products needed for barycentric coordinate calculation.
+    // Barycentric coordinates (u,v,w) are used to represent any point on the triangle's
+    // plane as a weighted average of its vertices: P = u*a + v*b + w*c.
+    let ab_dot_ab = ab.dot(&ab);
+    let ab_dot_ac = ab.dot(&ac);
+    let ac_dot_ac = ac.dot(&ac);
+    let barycentric_denominator = ab_dot_ab * ac_dot_ac - ab_dot_ac * ab_dot_ac;
+    let reciprocal_barycentric_denominator = if barycentric_denominator > 0.0 {
+        1.0 / barycentric_denominator
+    } else {
+        0.0
+    };
+
+    let triangle_normal = ab.cross(&ac).normalize();
+
+    // step 2
+    // check for direct intersection between the segment and the triangle
+    let p_distance_to_plane = ap.dot(&triangle_normal);
+    let q_distance_to_plane = aq.dot(&triangle_normal);
+
+    // if distances have opposite signs, they lie on opposite sides of the plane
+    // and thus the segment intersects the triangle's plane
+    if p_distance_to_plane * q_distance_to_plane <= 0.0 {
+        // find the point where segment intersects the triangle's plane
+        // where t is the segment parameter such that intersection = p + t * pq
+        let t = -ap.dot(&triangle_normal) / pq.dot(&triangle_normal);
+        let intersection_point = p + t * pq;
+
+        // find barycentric coordinates of intersection point to determine if inside triangle
+        let intersection_to_a = intersection_point - triangle[0];
+        let intersection_dot_ab = intersection_to_a.dot(&ab);
+        let intersection_dot_ac = intersection_to_a.dot(&ac);
+
+        let barycentric_v = ac_dot_ac * intersection_dot_ab
+            - ab_dot_ac * intersection_dot_ac * reciprocal_barycentric_denominator;
+        let barycentric_w = ab_dot_ab * intersection_dot_ac
+            - ab_dot_ab * intersection_dot_ab * reciprocal_barycentric_denominator;
+
+        if barycentric_v >= 0.0 && barycentric_w >= 0.0 && barycentric_v + barycentric_w <= 1.0 {
+            // intersection point is inside the triangle
+            return 0.0;
+        }
     }
 
-    // the closest point is on one of the edges of the triangle, we just need to find which
-    let point_to_ab =
-        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[0], triangle[1]);
-    let point_to_bc =
-        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[1], triangle[2]);
-    let point_to_ca =
-        shortest_distance_from_point_to_line_segment_squared_vec(point, triangle[2], triangle[0]);
+    // step 3
+    // check for distances to triangle edges
+    // if no intersection with the triangle, the closest point will be on the boundary (edge or vertex)
+    let edge_closest_points = [
+        closest_points_on_lines(triangle[0], triangle[1], p, q), // ab -> pq
+        closest_points_on_lines(triangle[1], triangle[2], p, q), // bc -> pq
+        closest_points_on_lines(triangle[2], triangle[0], p, q), // ca -> pq
+    ];
+    let closest_edge_distance = edge_closest_points
+        .iter()
+        .map(|(a, b)| (*a - *b).length_squared())
+        .min_by(|a, b| a.total_cmp(b))
+        .expect("Tried to compare a NaN value, this should never happen unless a vertex was NaN");
 
-    return point_to_ab.min(point_to_bc).min(point_to_ca);
+    // step 4
+    // check for distances between a segment vertex and the triangle face
+    // by projecting the endpoints onto the plane of the triangle, and seeing if it is inside the triangle
+    let p_distance_to_face_if_projects_inside =
+        get_point_projected_to_triangle_distance_squared_if_inside(p, &triangle);
+    let q_distance_to_face_if_projects_inside =
+        get_point_projected_to_triangle_distance_squared_if_inside(q, &triangle);
+
+    // step 5
+    // find the shortest distance from the previous calculations
+    // either:
+    // 1. segment <-> triangle edge,
+    // 2. p <-> projection of p on triangle face if p projects inside,
+    // 3. q <-> projection of q on triangle face if q projects inside,
+    let shortest_distance = [
+        closest_edge_distance,
+        p_distance_to_face_if_projects_inside.unwrap_or(f64::INFINITY),
+        q_distance_to_face_if_projects_inside.unwrap_or(f64::INFINITY),
+    ]
+    .into_iter()
+    .min_by(|a, b| a.total_cmp(b))
+    .expect("Tried to compare a NaN value, this should never happen unless a vertex was NaN");
+
+    return shortest_distance;
 }
 
 /*
