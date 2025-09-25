@@ -233,6 +233,29 @@ pub fn get_renderable_delta_between_line_and_triangle(
     return Ok(max_renderable_delta_across_primitive.sqrt());
 }
 
+pub fn get_renderable_delta_between_triangle_and_point(
+    leaf: &TrianglePrimitive,
+    parent: &PointPrimitive,
+) -> Result<f64, TesseraError> {
+    let mut max_renderable_delta_across_primitive = f64::NEG_INFINITY;
+
+    for (a_a, a_b, a_c) in leaf.iter_vertices() {
+        let mut closest_distance = f64::INFINITY;
+
+        for b_point in parent.iter_vertices() {
+            let distance = shortest_distance_from_point_to_triangle_squared(b_point, a_a, a_b, a_c);
+
+            // because a point occupies no space, any of the nearest matches will have the same distance
+            closest_distance = closest_distance.min(distance);
+        }
+
+        max_renderable_delta_across_primitive =
+            max_renderable_delta_across_primitive.max(closest_distance);
+    }
+
+    return Ok(max_renderable_delta_across_primitive.sqrt());
+}
+
 pub fn get_renderable_delta_between_triangles(
     leaf: &TrianglePrimitive,
     parent: &TrianglePrimitive,
