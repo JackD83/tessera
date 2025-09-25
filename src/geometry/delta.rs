@@ -9,6 +9,7 @@ use crate::{
         point::point_distance_squared,
         triangle::{
             longest_distance_between_line_segment_and_triangle_squared,
+            longest_distance_between_triangle_and_line_segment_squared,
             longest_distance_between_triangles_squared,
             shortest_distance_from_line_segment_to_triangle_squared,
             shortest_distance_from_point_to_triangle_squared, shortest_triangle_distance_squared,
@@ -251,6 +252,49 @@ pub fn get_renderable_delta_between_triangle_and_point(
 
         max_renderable_delta_across_primitive =
             max_renderable_delta_across_primitive.max(closest_distance);
+    }
+
+    return Ok(max_renderable_delta_across_primitive.sqrt());
+}
+
+pub fn get_renderable_delta_between_triangle_and_line(
+    leaf: &TrianglePrimitive,
+    parent: &LinePrimitive,
+) -> Result<f64, TesseraError> {
+    let mut max_renderable_delta_across_primitive = f64::NEG_INFINITY;
+
+    for (a_a, a_b, a_c) in leaf.iter_vertices() {
+        let mut closest_representations: Vec<([f32; 3], [f32; 3])> = vec![];
+        let mut closest_distance = f64::INFINITY;
+
+        for (b_start, b_end) in parent.iter_vertices() {
+            let distance = shortest_distance_from_line_segment_to_triangle_squared(
+                b_start, b_end, a_a, a_b, a_c,
+            );
+
+            if distance < closest_distance {
+                closest_representations = vec![(*b_start, *b_end)];
+                closest_distance = distance;
+            } else if distance == closest_distance {
+                closest_representations.push((*b_start, *b_end));
+            }
+        }
+
+        // then find the best case renderable delta between the source and it's simplification(s)
+        // this will be the simplified entity that best represents the source entity and thus the
+        // largest delta from this point will be the simplification error
+        let mut min_renderable_delta = f64::INFINITY;
+        for (b_start, b_end) in closest_representations {
+            let triangle_distance_squared =
+                longest_distance_between_triangle_and_line_segment_squared(
+                    &a_a, &a_b, &a_c, &b_start, &b_end,
+                );
+
+            min_renderable_delta = min_renderable_delta.min(triangle_distance_squared);
+        }
+
+        max_renderable_delta_across_primitive =
+            max_renderable_delta_across_primitive.max(min_renderable_delta);
     }
 
     return Ok(max_renderable_delta_across_primitive.sqrt());

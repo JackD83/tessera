@@ -7,6 +7,7 @@ use crate::{
             get_renderable_delta_between_line_and_triangle, get_renderable_delta_between_lines,
             get_renderable_delta_between_point_and_line,
             get_renderable_delta_between_point_and_triangle, get_renderable_delta_between_points,
+            get_renderable_delta_between_triangle_and_line,
             get_renderable_delta_between_triangle_and_point,
             get_renderable_delta_between_triangles,
         },
@@ -93,6 +94,9 @@ fn get_renderable_delta_between_primitives(
         }
         (Primitive::TrianglePrimitive(a), Primitive::PointPrimitive(b)) => {
             return get_renderable_delta_between_triangle_and_point(a, b);
+        }
+        (Primitive::TrianglePrimitive(a), Primitive::LinePrimitive(b)) => {
+            return get_renderable_delta_between_triangle_and_line(a, b);
         }
         (Primitive::TrianglePrimitive(a), Primitive::TrianglePrimitive(b)) => {
             return get_renderable_delta_between_triangles(a, b);
