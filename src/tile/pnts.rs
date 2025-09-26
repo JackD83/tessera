@@ -1,4 +1,9 @@
 use byteorder::{LittleEndian, ReadBytesExt};
+use draco_rs::{
+    decode::{Decoder, DecoderBuffer},
+    pointcloud::PointCloud,
+    prelude::AttrId,
+};
 use std::{
     fs,
     io::{self, BufReader, Read, Seek},
@@ -88,18 +93,27 @@ pub struct BinaryBodyReference {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GlobalPropertyInteger {
-    pub value: i32,
+pub struct Extensions {
+    #[serde(rename = "3DTILES_draco_point_compression")]
+    pub draco_point_compression: DracoPointCompression,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GlobalPropertyCartesian3 {
-    pub value: [f64; 3],
+pub struct DracoPointCompression {
+    #[serde(rename = "byteLength")]
+    pub byte_length: u32,
+    #[serde(rename = "byteOffset")]
+    pub byte_offset: u32,
+    #[serde(rename = "properties")]
+    pub properties: DracoPointCompressionProperties,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct GlobalPropertyCartesian4 {
-    pub value: [f64; 4],
+pub struct DracoPointCompressionProperties {
+    #[serde(rename = "RGB")]
+    pub rgb: u32,
+    #[serde(rename = "POSITION")]
+    pub position: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -133,10 +147,10 @@ pub struct PointCloudFeatureTable {
     pub batch_id: Option<BinaryBodyReference>,
 
     #[serde(rename = "POINTS_LENGTH")]
-    pub points_length: GlobalPropertyInteger,
+    pub points_length: usize,
 
     #[serde(rename = "RTC_CENTER", skip_serializing_if = "Option::is_none")]
-    pub rtc_center: Option<GlobalPropertyCartesian3>,
+    pub rtc_center: Option<[f64; 3]>,
 
     // A 3-component array of numbers defining the offset for the quantized volume
     // Required if POSITION_QUANTIZED is present.
@@ -144,7 +158,7 @@ pub struct PointCloudFeatureTable {
         rename = "QUANTIZED_VOLUME_OFFSET",
         skip_serializing_if = "Option::is_none"
     )]
-    pub quantized_volume_offset: Option<GlobalPropertyCartesian3>,
+    pub quantized_volume_offset: Option<[f64; 3]>,
 
     // A 3-component array of numbers defining the scale for the quantized volume
     // Required if POSITION_QUANTIZED is present.
@@ -152,13 +166,16 @@ pub struct PointCloudFeatureTable {
         rename = "QUANTIZED_VOLUME_SCALE",
         skip_serializing_if = "Option::is_none"
     )]
-    pub quantized_volume_scale: Option<GlobalPropertyCartesian3>,
+    pub quantized_volume_scale: Option<[f64; 3]>,
 
     #[serde(rename = "CONSTANT_RGBA", skip_serializing_if = "Option::is_none")]
-    pub constant_rgba: Option<GlobalPropertyCartesian4>,
+    pub constant_rgba: Option<[f64; 4]>,
 
     #[serde(rename = "BATCH_LENGTH", skip_serializing_if = "Option::is_none")]
-    pub batch_length: Option<GlobalPropertyInteger>,
+    pub batch_length: Option<usize>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extensions: Option<Extensions>,
 }
 
 impl Header {
@@ -218,21 +235,16 @@ pub fn load_tile_pnts(base_dir: &Path, uri: &String) -> Result<Geometry, Tessera
         )));
     }
 
-    // push reader forward to start of Point data
-    let seek_offset: Result<i64, std::num::TryFromIntError> =
-        feature_table_start_position.try_into();
-    if seek_offset.is_err() {
-        return Err(TesseraError::InvalidPntsFile(format!(
-            "could not seek to start of Point data in {file_name}, specified length was too large"
-        )));
-    }
+    let mut feature_table_json_data =
+        Vec::with_capacity(header.feature_table_json_byte_length as usize);
+    feature_table_json_data.resize(header.feature_table_json_byte_length as usize, 0);
 
     reader
-        .seek_relative(seek_offset.unwrap())
+        .read_exact(&mut feature_table_json_data)
         .map_err(TesseraError::Io)?;
 
     let feature_table: PointCloudFeatureTable =
-        serde_json::from_reader(&mut reader).map_err(TesseraError::Json)?;
+        serde_json::from_slice(&mut feature_table_json_data).map_err(TesseraError::Json)?;
 
     // seek to start of feature table binary
     reader
@@ -243,6 +255,7 @@ pub fn load_tile_pnts(base_dir: &Path, uri: &String) -> Result<Geometry, Tessera
 
     let mut feature_table_binary_data =
         Vec::with_capacity(header.feature_table_binary_byte_length as usize);
+    feature_table_binary_data.resize(header.feature_table_binary_byte_length as usize, 0);
 
     // read feature table binary
     reader
@@ -259,18 +272,22 @@ pub fn load_tile_pnts(base_dir: &Path, uri: &String) -> Result<Geometry, Tessera
             )));
         }
         (Some(position), None) => {
-            points.set_vertices(extract_positions(
+            let positions = get_positions_from_feature_table_binary(
                 &feature_table_binary_data,
                 &position,
-                feature_table.points_length.value as usize,
-            ));
+                feature_table.points_length,
+                feature_table.extensions.map(|e| e.draco_point_compression),
+            )?;
+            points.set_vertices(positions);
         }
         (None, Some(position_quantized)) => {
-            points.set_vertices(extract_positions(
+            let positions = get_positions_from_feature_table_binary(
                 &feature_table_binary_data,
                 &position_quantized,
-                feature_table.points_length.value as usize,
-            ));
+                feature_table.points_length,
+                feature_table.extensions.map(|e| e.draco_point_compression),
+            )?;
+            points.set_vertices(positions);
         }
         (None, None) => {
             return Err(TesseraError::InvalidPntsFile(format!(
@@ -284,12 +301,64 @@ pub fn load_tile_pnts(base_dir: &Path, uri: &String) -> Result<Geometry, Tessera
     return Ok(geometry);
 }
 
+fn get_positions_from_feature_table_binary(
+    feature_table_binary_data: &Vec<u8>,
+    position: &BinaryBodyReference,
+    num_points: usize,
+    draco_point_compression: Option<DracoPointCompression>,
+) -> Result<Vec<[f32; 3]>, TesseraError> {
+    if draco_point_compression.is_some() {
+        return extract_draco_compressed_positions(
+            &feature_table_binary_data,
+            &draco_point_compression.unwrap(),
+            num_points,
+        );
+    } else {
+        return Ok(extract_positions(
+            &feature_table_binary_data,
+            &position,
+            num_points,
+        ));
+    }
+}
+
+fn extract_draco_compressed_positions(
+    feature_table_binary_data: &Vec<u8>,
+    draco_point_compression: &DracoPointCompression,
+    num_points: usize,
+) -> Result<Vec<[f32; 3]>, TesseraError> {
+    let mut position_data = Vec::<[f32; 3]>::with_capacity(num_points);
+    let binary_data = &feature_table_binary_data[draco_point_compression.byte_offset as usize
+        ..draco_point_compression.byte_offset as usize
+            + draco_point_compression.byte_length as usize];
+    let mut decoder_buffer = DecoderBuffer::from_buffer(binary_data);
+
+    let mut draco_point_cloud =
+        PointCloud::from_buffer(&mut Decoder::default(), &mut decoder_buffer)
+            .map_err(TesseraError::DracoError)?;
+
+    for i in 0..num_points {
+        let mut point_container = [0.0; 3];
+
+        draco_point_cloud.get_point(
+            AttrId(draco_point_compression.properties.position as i32),
+            i,
+            &mut point_container,
+        );
+
+        position_data.push(point_container);
+    }
+
+    return Ok(position_data);
+}
+
 fn extract_positions(
     feature_table_binary_data: &Vec<u8>,
     position: &BinaryBodyReference,
     num_points: usize,
 ) -> Vec<[f32; 3]> {
     let mut position_data = Vec::<[f32; 3]>::with_capacity(num_points);
+
     let byte_start = position.byte_offset as usize;
     let byte_end = byte_start + num_points * 12; // 3 f32s per point, 4 bytes per f32
     let bytes = &feature_table_binary_data[byte_start..byte_end];

@@ -31,6 +31,9 @@ pub enum TesseraError {
 
     #[error("Unsupported primitive comparison: {0}")]
     UnsupportedPrimitiveComparison(String),
+
+    #[error("Draco error: {0}")]
+    DracoError(#[from] draco_rs::prelude::DracoStatus),
 }
 
 pub type Result<T> = std::result::Result<T, TesseraError>;
