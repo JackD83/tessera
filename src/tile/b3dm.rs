@@ -11,7 +11,7 @@ use crate::{
     error::TesseraError, geometry::Geometry, tile::gltf::gltf_to_geometry, utils::resolve_uri,
 };
 
-/// The header section of a .glb file.
+/// The header section of a .b3dm file.
 #[derive(Copy, Clone, Debug)]
 #[repr(C)]
 pub struct Header {

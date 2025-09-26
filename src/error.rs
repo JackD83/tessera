@@ -23,6 +23,9 @@ pub enum TesseraError {
     #[error("Invalid B3DM file: {0}")]
     InvalidB3dmFile(String),
 
+    #[error("Invalid PNTS file: {0}")]
+    InvalidPntsFile(String),
+
     #[error("Unsupported GLTF primitive type: {0}")]
     UnsuportedGltfPrimitiveType(String),
 
