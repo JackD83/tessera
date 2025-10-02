@@ -81,4 +81,6 @@ Please note that while we are happy to collaborate with the community, Sensat ca
 ## Attributions
 
 
-The Tessera project is supported by Sensat.
+The Tessera project is supported by
+
+![Sensat](assets/sensat-logo-negative.png)
