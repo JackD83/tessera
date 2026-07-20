@@ -1,3 +1,5 @@
+use autocxx::prelude::*;
+use draco_rs::prelude::{DecoderBuffer, GetDracoInner, StatusOr, ffi};
 use gltf::mesh::{Mode, util::ReadIndices};
 use std::{
     collections::VecDeque,
@@ -79,30 +81,17 @@ pub fn gltf_to_geometry(
                 .fold(Mat4::identity(), |acc, x| acc * x);
 
             for primitive in mesh.primitives() {
-                let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
-
                 let mut geometry_primitive = create_primitive_from_gltf_primitive(&primitive)?;
 
-                // TODO: consider not applying the transforms directly and instead storing them
-                // as part of the geometry, if the on-the-fly computation cost is acceptable
-                // for the reduction in memory usage.
-                let transformed_vertices = reader
-                    .read_positions()
-                    .unwrap()
-                    .map(|v| {
-                        let as_vec = Vec3::from_array(&v);
-                        let transformed = current_transform * as_vec;
-                        return transformed.to_array();
-                    })
-                    .collect();
-                geometry_primitive.set_vertices(transformed_vertices);
+                let (vertices, indices) = read_primitive_positions_and_indices(
+                    &primitive,
+                    buffers,
+                    &current_transform,
+                )?;
+                geometry_primitive.set_vertices(vertices);
 
-                if let Some(indices) = reader.read_indices() {
-                    geometry_primitive.set_indices(match indices {
-                        ReadIndices::U8(is) => is.map(|x| x as u32).collect(),
-                        ReadIndices::U16(is) => is.map(|x| x as u32).collect(),
-                        ReadIndices::U32(is) => is.collect(),
-                    });
+                if let Some(indices) = indices {
+                    geometry_primitive.set_indices(indices);
                 };
 
                 geometry.add_primitive(geometry_primitive);
@@ -111,6 +100,117 @@ pub fn gltf_to_geometry(
     }
 
     return Ok(geometry);
+}
+
+fn read_primitive_positions_and_indices(
+    primitive: &gltf::Primitive,
+    buffers: &Vec<gltf::buffer::Data>,
+    transform: &Mat4,
+) -> Result<(Vec<[f32; 3]>, Option<Vec<u32>>), TesseraError> {
+    if let Some(draco) = primitive.extension_value("KHR_draco_mesh_compression") {
+        return read_draco_primitive_positions_and_indices(draco, buffers, transform);
+    }
+
+    let reader = primitive.reader(|buffer| Some(&buffers[buffer.index()]));
+
+    let vertices = reader
+        .read_positions()
+        .ok_or_else(|| {
+            TesseraError::Processing("GLTF primitive missing POSITION attribute".to_string())
+        })?
+        .map(|v| transform_position(v, transform))
+        .collect();
+
+    let indices = reader.read_indices().map(|indices| match indices {
+        ReadIndices::U8(is) => is.map(|x| x as u32).collect(),
+        ReadIndices::U16(is) => is.map(|x| x as u32).collect(),
+        ReadIndices::U32(is) => is.collect(),
+    });
+
+    Ok((vertices, indices))
+}
+
+fn read_draco_primitive_positions_and_indices(
+    draco: &serde_json::Value,
+    buffers: &Vec<gltf::buffer::Data>,
+    transform: &Mat4,
+) -> Result<(Vec<[f32; 3]>, Option<Vec<u32>>), TesseraError> {
+    let view = draco
+        .get("bufferView")
+        .and_then(|v| v.as_u64())
+        .ok_or_else(|| {
+            TesseraError::Processing("KHR_draco_mesh_compression missing bufferView".to_string())
+        })?
+        as usize;
+    let position_attr = draco
+        .get("attributes")
+        .and_then(|v| v.get("POSITION"))
+        .and_then(|v| v.as_i64())
+        .ok_or_else(|| {
+            TesseraError::Processing(
+                "KHR_draco_mesh_compression missing POSITION attribute".to_string(),
+            )
+        })?
+        as i32;
+
+    let buffer_view = buffers.get(view).ok_or_else(|| {
+        TesseraError::Processing(format!("Invalid Draco bufferView index {}", view))
+    })?;
+    let mut decoder_buffer = DecoderBuffer::from_buffer(buffer_view);
+    let mut decoder = ffi::draco::Decoder::new().within_unique_ptr();
+    let mut status_or = unsafe {
+        decoder
+            .pin_mut()
+            .DecodeMeshFromBuffer(decoder_buffer.get_inner_mut().as_mut_ptr())
+    };
+    if !status_or.ok() {
+        return Err(TesseraError::DracoError(
+            status_or.status().within_unique_ptr().into(),
+        ));
+    }
+
+    let mut mesh = status_or.pin_mut().value();
+    let mesh_pin = mesh.as_mut().ok_or_else(|| {
+        TesseraError::Processing("Draco decoder returned an empty mesh".to_string())
+    })?;
+    let mesh_ref = mesh_pin.as_ref().get_ref();
+    let point_cloud = <ffi::draco::Mesh as AsRef<ffi::draco::PointCloud>>::as_ref(mesh_ref);
+    let position_attribute = point_cloud.GetAttributeByUniqueId(position_attr as u32);
+    if position_attribute.is_null() {
+        return Err(TesseraError::Processing(format!(
+            "Draco POSITION attribute {} not found",
+            position_attr
+        )));
+    }
+
+    let vertices = (0..point_cloud.num_points())
+        .map(|i| {
+            let mut vertex = [0.0; 3];
+            unsafe {
+                (*position_attribute).GetMappedValue(
+                    ffi::draco::PointIndexIndexType { val: i },
+                    vertex.as_mut_ptr() as *mut autocxx::c_void,
+                );
+            }
+            transform_position(vertex, transform)
+        })
+        .collect();
+
+    let indices = (0..mesh_ref.num_faces() * 3)
+        .map(|i| {
+            mesh_ref
+                .CornerToPointId1(ffi::draco::CornerIndexIndexType { val: i })
+                .val
+        })
+        .collect();
+
+    Ok((vertices, Some(indices)))
+}
+
+fn transform_position(position: [f32; 3], transform: &Mat4) -> [f32; 3] {
+    let as_vec = Vec3::from_array(&position);
+    let transformed = *transform * as_vec;
+    transformed.to_array()
 }
 
 fn create_primitive_from_gltf_primitive(

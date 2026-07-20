@@ -388,9 +388,13 @@ pub fn shortest_triangle_distance_squared(
         &edges_a,
     );
     // if we found a pair of closest points, we can exit early
-    if let Some(closest_point_on_a) = maybe_shortest_distance.closest_point_found_on_a
-        && let Some(closest_point_on_b) = maybe_shortest_distance.closest_point_found_on_b
-    {
+    if let (
+        Some(closest_point_on_a),
+        Some(closest_point_on_b),
+    ) = (
+        maybe_shortest_distance.closest_point_found_on_a,
+        maybe_shortest_distance.closest_point_found_on_b,
+    ) {
         return (closest_point_on_a - closest_point_on_b).length_squared();
     }
     triangles_are_separated = triangles_are_separated || maybe_shortest_distance.separated;
@@ -403,9 +407,13 @@ pub fn shortest_triangle_distance_squared(
         &edges_b,
     );
     // if we found a pair of closest points, we can exit early
-    if let Some(closest_point_on_a) = maybe_shortest_distance.closest_point_found_on_a
-        && let Some(closest_point_on_b) = maybe_shortest_distance.closest_point_found_on_b
-    {
+    if let (
+        Some(closest_point_on_a),
+        Some(closest_point_on_b),
+    ) = (
+        maybe_shortest_distance.closest_point_found_on_a,
+        maybe_shortest_distance.closest_point_found_on_b,
+    ) {
         return (closest_point_on_a - closest_point_on_b).length_squared();
     }
     triangles_are_separated = triangles_are_separated || maybe_shortest_distance.separated;
