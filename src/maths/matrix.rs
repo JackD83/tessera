@@ -3,7 +3,7 @@ use std::ops::Mul;
 use crate::maths::vec::{Vec3, Vec4};
 
 // column-major 4x4 matrix, as per glTF specification
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Mat4 {
     pub elements: [f64; 16],
 }

@@ -4,7 +4,6 @@ use crate::utils::strip_query_and_fragment;
 use pathdiff::diff_paths;
 use std::fs;
 use std::path::{Path, PathBuf};
-use tracing::warn;
 
 pub fn load_tileset(path: &Path) -> Result<Tileset> {
     let data = fs::read_to_string(path).map_err(TesseraError::Io)?;
@@ -13,12 +12,12 @@ pub fn load_tileset(path: &Path) -> Result<Tileset> {
 
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     inline_external_tilesets(&mut tileset.root, base_dir, base_dir)?;
-    assign_tile_ids_warn_and_reject_implicit_tiling(&mut tileset.root)?;
+    assign_tile_ids_and_reject_implicit_tiling(&mut tileset.root)?;
 
     return Ok(tileset);
 }
 
-fn assign_tile_ids_warn_and_reject_implicit_tiling(root: &mut Tile) -> Result<()> {
+fn assign_tile_ids_and_reject_implicit_tiling(root: &mut Tile) -> Result<()> {
     let mut current_id = 0;
 
     fn traverse(tile: &mut Tile, current_id: &mut usize) -> Result<()> {
@@ -41,14 +40,6 @@ fn assign_tile_ids_warn_and_reject_implicit_tiling(root: &mut Tile) -> Result<()
                 "Implicit tiling is not implemented; encountered on tile {} with content {}",
                 tile.id, content
             )));
-        }
-
-        if tile.transform.is_some() {
-            warn!(
-                tile_id = tile.id,
-                content,
-                "Tile transform encountered but tileset transformations are not implemented; geometric error may be inaccurate"
-            );
         }
 
         *current_id += 1;

@@ -1,4 +1,4 @@
-use crate::maths::{sphere::Sphere, vec::Vec3};
+use crate::maths::{matrix::Mat4, sphere::Sphere, vec::Vec3};
 
 pub mod compare;
 pub mod delta;
@@ -144,6 +144,17 @@ impl Geometry {
 
     pub fn add_primitive(&mut self, primitive: Primitive) {
         self.primitives.push(primitive);
+    }
+
+    pub fn apply_transform(&mut self, transform: &Mat4) {
+        for primitive in &mut self.primitives {
+            let transformed_vertices = primitive
+                .get_vertices()
+                .iter()
+                .map(|v| (*transform * Vec3::from_array(v)).to_array())
+                .collect();
+            primitive.set_vertices(transformed_vertices);
+        }
     }
 }
 

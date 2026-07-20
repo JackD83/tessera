@@ -2,7 +2,7 @@ use crate::error::TesseraError;
 use crate::geometry::Geometry;
 use crate::geometry::compare::get_geometric_error_between_geometries;
 use crate::maths::sphere::Sphere;
-use crate::tile::load_tile_geometry;
+use crate::tile::load_tile_geometry_with_transform;
 use crate::tileset::traverse::{TilesetNode, parse_tileset_nodes};
 use crate::tileset::{Tile, Tileset};
 use std::collections::HashMap;
@@ -144,6 +144,6 @@ fn load_tile_geometries(
     return node
         .content
         .iter()
-        .map(|uri| load_tile_geometry(base_dir, uri))
+        .map(|uri| load_tile_geometry_with_transform(base_dir, uri, &node.transform))
         .collect::<Vec<_>>();
 }
