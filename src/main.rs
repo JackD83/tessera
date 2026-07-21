@@ -4,7 +4,7 @@ use tessera::tileset::writer::write_tileset;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
-use tessera::calculate_geometric_error;
+use tessera::calculate_geometric_error_with_cache_size;
 use tessera::error::TesseraError;
 
 #[derive(Parser)]
@@ -42,6 +42,15 @@ enum Commands {
         /// Whether to pretty print the output tileset.json
         #[arg(short('p'), long("pretty"), action = clap::ArgAction::SetTrue)]
         pretty: Option<bool>,
+
+        /// Maximum number of decoded tile geometries to keep in memory. Use 0 to disable caching.
+        #[arg(
+            long("cache-tiles"),
+            visible_alias("tile-load-limit"),
+            value_name = "LIMIT",
+            default_value_t = tessera::DEFAULT_GEOMETRY_CACHE_TILES
+        )]
+        cache_tiles: usize,
     },
 }
 
@@ -71,6 +80,7 @@ async fn main() -> Result<(), TesseraError> {
             tileset,
             output,
             pretty,
+            cache_tiles,
         }) => {
             use std::path::PathBuf;
             use tessera::tileset::loader::load_tileset;
@@ -82,7 +92,7 @@ async fn main() -> Result<(), TesseraError> {
 
             let mut doc = load_tileset(&tileset_path)?;
 
-            calculate_geometric_error(&mut doc, base_dir)?;
+            calculate_geometric_error_with_cache_size(&mut doc, base_dir, cache_tiles)?;
 
             write_tileset(&doc, &PathBuf::from(&output), pretty.unwrap_or(false))?;
         }
