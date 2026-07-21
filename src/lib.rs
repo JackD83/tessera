@@ -7,6 +7,7 @@ use crate::tileset::traverse::{TilesetNode, parse_tileset_nodes};
 use crate::tileset::{Tile, Tileset};
 use std::collections::HashMap;
 use std::path::Path;
+use tracing::{debug, info};
 
 pub mod error;
 pub mod geometry;
@@ -20,6 +21,7 @@ pub fn calculate_geometric_error(
     base_dir: &Path,
 ) -> Result<(), TesseraError> {
     let (mut node_map, root_id, leaf_ids) = parse_tileset_nodes(tileset);
+    let geometry_cache = load_tileset_geometries(&node_map, base_dir)?;
 
     // set all leaves to geometric error 0
     for leaf_id in &leaf_ids {
@@ -27,57 +29,58 @@ pub fn calculate_geometric_error(
         leaf_node.geometric_error = Some(0.0);
     }
 
+    let total_tiles = node_map.len();
+    let mut recalculated_tiles = 0usize;
+
     // traverse tileset from leaves to root to set geometric error per parent node
     for leaf_id in &leaf_ids {
-        let leaf_node = node_map.get(&leaf_id).unwrap();
+        let leaf_geometries = geometry_refs(&geometry_cache, *leaf_id)?;
+        let mut current_id = *leaf_id;
 
-        let mut current_node = leaf_node;
+        while let Some(parent) = node_map.get(&current_id).unwrap().parent_id {
+            let parent_geometries = geometry_refs(&geometry_cache, parent)?;
 
-        // TODO: handle error case
-        let leaf_geometry_results = load_tile_geometries(&leaf_node, base_dir);
-        let leaf_geometries = leaf_geometry_results
-            .iter()
-            .map(|r| r.as_ref().unwrap())
-            .collect::<Vec<_>>();
+            let geometric_error =
+                get_geometric_error_between_geometries(&leaf_geometries, &parent_geometries)?;
 
-        while let Some(parent) = current_node.parent_id {
             let parent_node = node_map.get_mut(&parent).unwrap();
-
-            // TODO: handle error case
-            let parent_geometries_results = load_tile_geometries(&parent_node, base_dir);
-            let parent_geometries = parent_geometries_results
-                .iter()
-                .map(|r| r.as_ref().unwrap())
-                .collect::<Vec<_>>();
-
-            let geometric_error_result =
-                get_geometric_error_between_geometries(&leaf_geometries, &parent_geometries);
-
-            if geometric_error_result.is_err() {
-                return Err(geometric_error_result.err().unwrap());
-            }
-
-            let geometric_error = geometric_error_result.unwrap();
 
             if parent_node.geometric_error.is_none()
                 || parent_node.geometric_error.unwrap() < geometric_error
             {
+                let was_uncalculated = parent_node.geometric_error.is_none();
                 parent_node.geometric_error = Some(geometric_error);
+
+                if was_uncalculated {
+                    recalculated_tiles += 1;
+                    let percent = (recalculated_tiles as f64 / total_tiles as f64) * 100.0;
+                    info!(
+                        tile_id = parent_node.id,
+                        recalculated_tiles,
+                        total_tiles,
+                        percent = format_args!("{:.2}", percent),
+                        original_geometric_error = parent_node.original_geometric_error,
+                        calculated_geometric_error = geometric_error,
+                        "Recalculated tile geometric error"
+                    );
+                } else {
+                    debug!(
+                        tile_id = parent_node.id,
+                        original_geometric_error = parent_node.original_geometric_error,
+                        calculated_geometric_error = geometric_error,
+                        "Updated tile geometric error"
+                    );
+                }
             }
 
-            current_node = parent_node;
+            current_id = parent;
         }
     }
 
-    println!("Node map: {:?}", node_map);
+    debug!(?node_map, "Calculated tileset node map");
 
     // TODO: handle case where root has no content
-    let root_geometry = load_tile_geometries(&node_map.get(&root_id).unwrap(), base_dir);
-
-    let root_geometry = root_geometry
-        .iter()
-        .map(|r| r.as_ref().unwrap())
-        .collect::<Vec<_>>();
+    let root_geometry = geometry_refs(&geometry_cache, root_id)?;
 
     let root_bounding_sphere = Sphere::from_points(
         &root_geometry
@@ -90,6 +93,17 @@ pub fn calculate_geometric_error(
     // copy across geometric error values to tileset
     set_tileset_geometric_error(tileset, &node_map)?;
 
+    for node in node_map.values() {
+        if let Some(calculated_geometric_error) = node.geometric_error {
+            debug!(
+                tile_id = node.id,
+                original_geometric_error = node.original_geometric_error,
+                calculated_geometric_error,
+                "Tile geometric error result"
+            );
+        }
+    }
+
     // use diameter for root tile geometric error as that's the closest we have to
     // error for not rendering the tileset at all
     tileset.geometric_error = Some(root_bounding_sphere.radius * 2.0);
@@ -100,7 +114,7 @@ pub fn calculate_geometric_error(
     // as we will need to handle cases where a tile has no content and thus would have an infinite
     // shortest distance from above.
 
-    println!("Tileset: {:?}", tileset);
+    debug!(?tileset, "Calculated tileset geometric errors");
 
     return Ok(());
 }
@@ -137,13 +151,33 @@ fn set_tileset_geometric_error(
     return traverse_and_set(&mut tileset.root, &node_map);
 }
 
-fn load_tile_geometries(
-    node: &TilesetNode,
+fn load_tileset_geometries(
+    node_map: &HashMap<usize, TilesetNode>,
     base_dir: &Path,
-) -> Vec<Result<Geometry, TesseraError>> {
-    return node
-        .content
-        .iter()
-        .map(|uri| load_tile_geometry_with_transform(base_dir, uri, &node.transform))
-        .collect::<Vec<_>>();
+) -> Result<HashMap<usize, Vec<Geometry>>, TesseraError> {
+    let mut geometry_cache = HashMap::<usize, Vec<Geometry>>::new();
+
+    for node in node_map.values() {
+        let geometries = node
+            .content
+            .iter()
+            .map(|uri| load_tile_geometry_with_transform(base_dir, uri, &node.transform))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        geometry_cache.insert(node.id, geometries);
+    }
+
+    debug!(tiles = geometry_cache.len(), "Loaded tile geometry cache");
+
+    return Ok(geometry_cache);
+}
+
+fn geometry_refs(
+    geometry_cache: &HashMap<usize, Vec<Geometry>>,
+    tile_id: usize,
+) -> Result<Vec<&Geometry>, TesseraError> {
+    return geometry_cache
+        .get(&tile_id)
+        .map(|geometries| geometries.iter().collect::<Vec<_>>())
+        .ok_or_else(|| TesseraError::Tileset(format!("Geometry not found for tile {tile_id}")));
 }

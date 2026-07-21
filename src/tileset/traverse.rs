@@ -14,7 +14,10 @@ pub(crate) struct TilesetNode {
 
     pub transform: Mat4,
 
-    // actual geometric error
+    // original geometric error from tileset.json
+    pub original_geometric_error: f64,
+
+    // calculated geometric error
     pub geometric_error: Option<f64>,
 }
 
@@ -58,6 +61,7 @@ pub(crate) fn parse_tileset_nodes(
             parent_id,
             child_ids: Vec::<usize>::new(),
             transform,
+            original_geometric_error: tile.geometric_error,
             geometric_error: None,
         };
 
