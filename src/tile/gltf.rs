@@ -83,11 +83,8 @@ pub fn gltf_to_geometry(
             for primitive in mesh.primitives() {
                 let mut geometry_primitive = create_primitive_from_gltf_primitive(&primitive)?;
 
-                let (vertices, indices) = read_primitive_positions_and_indices(
-                    &primitive,
-                    buffers,
-                    &current_transform,
-                )?;
+                let (vertices, indices) =
+                    read_primitive_positions_and_indices(&primitive, buffers, &current_transform)?;
                 geometry_primitive.set_vertices(vertices);
 
                 if let Some(indices) = indices {
@@ -140,8 +137,7 @@ fn read_draco_primitive_positions_and_indices(
         .and_then(|v| v.as_u64())
         .ok_or_else(|| {
             TesseraError::Processing("KHR_draco_mesh_compression missing bufferView".to_string())
-        })?
-        as usize;
+        })? as usize;
     let position_attr = draco
         .get("attributes")
         .and_then(|v| v.get("POSITION"))
@@ -150,8 +146,7 @@ fn read_draco_primitive_positions_and_indices(
             TesseraError::Processing(
                 "KHR_draco_mesh_compression missing POSITION attribute".to_string(),
             )
-        })?
-        as i32;
+        })? as i32;
 
     let buffer_view = buffers.get(view).ok_or_else(|| {
         TesseraError::Processing(format!("Invalid Draco bufferView index {}", view))

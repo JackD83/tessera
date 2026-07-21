@@ -1,7 +1,11 @@
+use std::slice;
+
 use crate::maths::{matrix::Mat4, sphere::Sphere, vec::Vec3};
 
 pub mod compare;
 pub mod delta;
+pub mod kdtree;
+pub mod prepared;
 
 #[derive(Debug)]
 pub enum Primitive {
@@ -16,6 +20,14 @@ impl Primitive {
             Primitive::PointPrimitive(p) => p.get_vertices(),
             Primitive::LinePrimitive(p) => p.get_vertices(),
             Primitive::TrianglePrimitive(p) => p.get_vertices(),
+        }
+    }
+
+    pub fn bounding_sphere(&self) -> &Sphere {
+        match self {
+            Primitive::PointPrimitive(p) => &p.bounding_sphere,
+            Primitive::LinePrimitive(p) => &p.bounding_sphere,
+            Primitive::TrianglePrimitive(p) => &p.bounding_sphere,
         }
     }
 
@@ -158,6 +170,75 @@ impl Geometry {
     }
 }
 
+pub enum PointVertexIter<'a> {
+    Indexed {
+        indices: slice::Iter<'a, u32>,
+        vertices: &'a [[f32; 3]],
+    },
+    Unindexed(slice::Iter<'a, [f32; 3]>),
+}
+
+impl<'a> Iterator for PointVertexIter<'a> {
+    type Item = &'a [f32; 3];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            PointVertexIter::Indexed { indices, vertices } => {
+                indices.next().map(|index| &vertices[*index as usize])
+            }
+            PointVertexIter::Unindexed(iter) => iter.next(),
+        }
+    }
+}
+
+pub enum LineVertexIter<'a> {
+    Indexed {
+        chunks: slice::Chunks<'a, u32>,
+        vertices: &'a [[f32; 3]],
+    },
+    Unindexed(slice::Chunks<'a, [f32; 3]>),
+}
+
+impl<'a> Iterator for LineVertexIter<'a> {
+    type Item = (&'a [f32; 3], &'a [f32; 3]);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            LineVertexIter::Indexed { chunks, vertices } => chunks
+                .next()
+                .map(|chunk| (&vertices[chunk[0] as usize], &vertices[chunk[1] as usize])),
+            LineVertexIter::Unindexed(chunks) => chunks.next().map(|chunk| (&chunk[0], &chunk[1])),
+        }
+    }
+}
+
+pub enum TriangleVertexIter<'a> {
+    Indexed {
+        chunks: slice::Chunks<'a, u32>,
+        vertices: &'a [[f32; 3]],
+    },
+    Unindexed(slice::Chunks<'a, [f32; 3]>),
+}
+
+impl<'a> Iterator for TriangleVertexIter<'a> {
+    type Item = (&'a [f32; 3], &'a [f32; 3], &'a [f32; 3]);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            TriangleVertexIter::Indexed { chunks, vertices } => chunks.next().map(|chunk| {
+                (
+                    &vertices[chunk[0] as usize],
+                    &vertices[chunk[1] as usize],
+                    &vertices[chunk[2] as usize],
+                )
+            }),
+            TriangleVertexIter::Unindexed(chunks) => {
+                chunks.next().map(|chunk| (&chunk[0], &chunk[1], &chunk[2]))
+            }
+        }
+    }
+}
+
 impl PointPrimitive {
     pub fn new() -> PointPrimitive {
         PointPrimitive {
@@ -167,14 +248,13 @@ impl PointPrimitive {
         }
     }
 
-    pub fn iter_vertices(&self) -> Box<dyn Iterator<Item = &[f32; 3]> + '_> {
+    pub fn iter_vertices(&self) -> PointVertexIter<'_> {
         match &self.indices {
-            Some(index) => {
-                return Box::new(index.iter().map(|i| &self.vertices[*i as usize]));
-            }
-            None => {
-                return Box::new(self.vertices.iter());
-            }
+            Some(index) => PointVertexIter::Indexed {
+                indices: index.iter(),
+                vertices: &self.vertices,
+            },
+            None => PointVertexIter::Unindexed(self.vertices.iter()),
         }
     }
 }
@@ -188,44 +268,22 @@ impl LinePrimitive {
         }
     }
 
-    pub fn iter_vertices(&self) -> Box<dyn Iterator<Item = (&[f32; 3], &[f32; 3])> + '_> {
+    pub fn iter_vertices(&self) -> LineVertexIter<'_> {
         match &self.indices {
             Some(index) => {
-                if index.len() == 0 {
-                    return Box::new(std::iter::empty());
-                }
-
                 // ignore vertices that do not form a whole line
-                let safe_index_length = if index.len() % 2 == 0 {
-                    index.len()
-                } else {
-                    index.len() - 1
-                };
+                let safe_index_length = index.len() - (index.len() % 2);
 
-                return Box::new(index[..safe_index_length].chunks(2).map(|chunk| {
-                    (
-                        &self.vertices[chunk[0] as usize],
-                        &self.vertices[chunk[1] as usize],
-                    )
-                }));
+                LineVertexIter::Indexed {
+                    chunks: index[..safe_index_length].chunks(2),
+                    vertices: &self.vertices,
+                }
             }
             None => {
-                if self.vertices.len() == 0 {
-                    return Box::new(std::iter::empty());
-                }
-
                 // ignore vertices that do not form a whole line
-                let safe_vertex_length = if self.vertices.len() % 2 == 0 {
-                    self.vertices.len()
-                } else {
-                    self.vertices.len() - 1
-                };
+                let safe_vertex_length = self.vertices.len() - (self.vertices.len() % 2);
 
-                return Box::new(
-                    self.vertices[..safe_vertex_length]
-                        .chunks(2)
-                        .map(|chunk| (&chunk[0], &chunk[1])),
-                );
+                LineVertexIter::Unindexed(self.vertices[..safe_vertex_length].chunks(2))
             }
         }
     }
@@ -240,54 +298,28 @@ impl TrianglePrimitive {
         }
     }
 
-    pub fn iter_vertices(
-        &self,
-    ) -> Box<dyn Iterator<Item = (&[f32; 3], &[f32; 3], &[f32; 3])> + '_> {
+    pub fn iter_vertices(&self) -> TriangleVertexIter<'_> {
         match &self.indices {
             Some(index) => {
-                if index.len() == 0 {
-                    return Box::new(std::iter::empty());
-                }
-
                 // ignore vertices that do not form a whole triangle
-                let excess_indices = index.len() % 3;
-                let safe_index_length = if excess_indices == 0 {
-                    index.len()
-                } else {
-                    index.len() - excess_indices
-                };
+                let safe_index_length = index.len() - (index.len() % 3);
 
-                return Box::new(index[..safe_index_length].chunks(3).map(|chunk| {
-                    (
-                        &self.vertices[chunk[0] as usize],
-                        &self.vertices[chunk[1] as usize],
-                        &self.vertices[chunk[2] as usize],
-                    )
-                }));
+                TriangleVertexIter::Indexed {
+                    chunks: index[..safe_index_length].chunks(3),
+                    vertices: &self.vertices,
+                }
             }
             None => {
-                if self.vertices.len() == 0 {
-                    return Box::new(std::iter::empty());
-                }
-
                 // ignore vertices that do not form a whole triangle
-                let excess_vertices = self.vertices.len() % 3;
-                let safe_vertex_length = if excess_vertices == 0 {
-                    self.vertices.len()
-                } else {
-                    self.vertices.len() - excess_vertices
-                };
+                let safe_vertex_length = self.vertices.len() - (self.vertices.len() % 3);
 
-                return Box::new(
-                    self.vertices[..safe_vertex_length]
-                        .chunks(3)
-                        .map(|chunk| (&chunk[0], &chunk[1], &chunk[2])),
-                );
+                TriangleVertexIter::Unindexed(self.vertices[..safe_vertex_length].chunks(3))
             }
         }
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

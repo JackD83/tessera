@@ -178,7 +178,7 @@ pub fn shortest_distance_from_line_segment_to_triangle_squared(
     let pq = q - p;
     let ab = triangle[1] - triangle[0];
     let ac = triangle[2] - triangle[0];
-    let bc = triangle[2] - triangle[1];
+    let _bc = triangle[2] - triangle[1];
     let ap = p - triangle[0];
     let aq = q - triangle[0];
 
@@ -388,10 +388,7 @@ pub fn shortest_triangle_distance_squared(
         &edges_a,
     );
     // if we found a pair of closest points, we can exit early
-    if let (
-        Some(closest_point_on_a),
-        Some(closest_point_on_b),
-    ) = (
+    if let (Some(closest_point_on_a), Some(closest_point_on_b)) = (
         maybe_shortest_distance.closest_point_found_on_a,
         maybe_shortest_distance.closest_point_found_on_b,
     ) {
@@ -407,10 +404,7 @@ pub fn shortest_triangle_distance_squared(
         &edges_b,
     );
     // if we found a pair of closest points, we can exit early
-    if let (
-        Some(closest_point_on_a),
-        Some(closest_point_on_b),
-    ) = (
+    if let (Some(closest_point_on_a), Some(closest_point_on_b)) = (
         maybe_shortest_distance.closest_point_found_on_a,
         maybe_shortest_distance.closest_point_found_on_b,
     ) {
@@ -524,6 +518,7 @@ fn maybe_shortest_distance_between_face_of_a_and_vertex_of_b(
     };
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

@@ -120,13 +120,14 @@ impl Mul<Vec3> for Mat4 {
         let w = 1.0 / (a[3] * other.x + a[7] * other.y + a[11] * other.z + a[15]);
 
         Vec3::new(
-            a[0] * other.x + a[4] * other.y + a[8] * other.z + a[12] * w,
-            a[1] * other.x + a[5] * other.y + a[9] * other.z + a[13] * w,
-            a[2] * other.x + a[6] * other.y + a[10] * other.z + a[14] * w,
+            (a[0] * other.x + a[4] * other.y + a[8] * other.z + a[12]) * w,
+            (a[1] * other.x + a[5] * other.y + a[9] * other.z + a[13]) * w,
+            (a[2] * other.x + a[6] * other.y + a[10] * other.z + a[14]) * w,
         )
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

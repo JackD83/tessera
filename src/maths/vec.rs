@@ -106,6 +106,7 @@ impl Vec4 {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 

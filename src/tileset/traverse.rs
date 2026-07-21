@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::{maths::matrix::Mat4, tileset::{Tile, Tileset}};
+use crate::{
+    maths::matrix::Mat4,
+    tileset::{Tile, Tileset},
+};
 
 #[derive(Debug)]
 pub(crate) struct TilesetNode {
@@ -94,7 +97,13 @@ pub(crate) fn parse_tileset_nodes(
         return key;
     }
 
-    traverse(&tileset.root, None, Mat4::identity(), &mut node_map, &mut leaf_ids);
+    traverse(
+        &tileset.root,
+        None,
+        Mat4::identity(),
+        &mut node_map,
+        &mut leaf_ids,
+    );
 
     return (node_map, tileset.root.id, leaf_ids);
 }

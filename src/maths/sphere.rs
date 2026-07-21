@@ -1,6 +1,6 @@
 use crate::maths::{bounding_box::BoundingBox, vec::Vec3};
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f64,
@@ -41,5 +41,39 @@ impl Sphere {
 
         self.center = center;
         self.radius = radius;
+    }
+
+    pub fn min_distance_to(&self, other: &Sphere) -> f64 {
+        let center_distance = (self.center - other.center).length();
+        return (center_distance - self.radius - other.radius).max(0.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn min_distance_to_returns_gap_between_disjoint_spheres() {
+        let a = Sphere::new(Vec3::new(0.0, 0.0, 0.0), 1.0);
+        let b = Sphere::new(Vec3::new(5.0, 0.0, 0.0), 2.0);
+
+        assert_eq!(a.min_distance_to(&b), 2.0);
+    }
+
+    #[test]
+    fn min_distance_to_returns_zero_for_touching_spheres() {
+        let a = Sphere::new(Vec3::new(0.0, 0.0, 0.0), 1.0);
+        let b = Sphere::new(Vec3::new(3.0, 0.0, 0.0), 2.0);
+
+        assert_eq!(a.min_distance_to(&b), 0.0);
+    }
+
+    #[test]
+    fn min_distance_to_returns_zero_for_overlapping_spheres() {
+        let a = Sphere::new(Vec3::new(0.0, 0.0, 0.0), 2.0);
+        let b = Sphere::new(Vec3::new(1.0, 0.0, 0.0), 2.0);
+
+        assert_eq!(a.min_distance_to(&b), 0.0);
     }
 }

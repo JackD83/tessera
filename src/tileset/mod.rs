@@ -1,3 +1,4 @@
+pub mod compare;
 pub mod loader;
 pub(crate) mod traverse;
 pub mod writer;
